@@ -1,0 +1,23 @@
+{
+  "task_id": "pagination-boundary",
+  "repository": "../repos/pagination-boundary",
+  "issue_description": "A list endpoint returns one fewer item than requested and loses records between pages. Page numbers start at 1; each page should contain up to page_size items. Keep validation of nonpositive page and page_size values.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "pagination.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "35e241e7215679da3d04b2b0b1a796be9c7d07f8",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/pagination_boundary_test.py",
+  "difficulty": "easy",
+  "task_family": "boundary"
+}

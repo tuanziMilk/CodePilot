@@ -1,0 +1,7 @@
+{
+  "task_id": "query-repeated-values",
+  "path": "search_app/query.py",
+  "old": "values[key] = [value]",
+  "new": "values.setdefault(key, []).append(value)",
+  "baseline_definition_sha256": "463072c27a53f8d3f4cab05642bed958a93bac81cb4ef394a85e7f6aa18b7284"
+}

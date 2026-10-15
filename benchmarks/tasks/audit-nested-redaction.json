@@ -1,0 +1,27 @@
+{
+  "task_id": "audit-nested-redaction",
+  "repository": "../repos/audit-nested-redaction",
+  "issue_description": "Audit events redact credentials in nested objects but leak them when those objects occur inside arrays. Apply the same case-insensitive password/token redaction recursively through dictionaries and lists. Preserve array order, ordinary values, and the original event object.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "audit/__init__.py",
+    "audit/events.py",
+    "audit/formatting.py",
+    "audit/redaction.py",
+    "audit/transport.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "cf8f72bf9baec78647aea31e2c95e743e1c5bfb3",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/audit_nested_redaction_test.py",
+  "difficulty": "hard",
+  "task_family": "recursive-structure"
+}

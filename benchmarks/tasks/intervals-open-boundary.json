@@ -1,0 +1,26 @@
+{
+  "task_id": "intervals-open-boundary",
+  "repository": "../repos/intervals-open-boundary",
+  "issue_description": "The scheduling report combines adjacent reservations, even though half-open intervals [start, end) that only touch are separate reservations. Merge genuinely overlapping intervals, preserve adjacency, and leave the caller's input unchanged.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "scheduling/__init__.py",
+    "scheduling/calendar.py",
+    "scheduling/intervals.py",
+    "scheduling/report.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "85a6ac7bae376f8dbef5cdebaa948403bafcf663",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/intervals_open_boundary_test.py",
+  "difficulty": "medium",
+  "task_family": "algorithm-boundary"
+}

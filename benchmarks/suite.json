@@ -1,0 +1,14 @@
+{
+  "tasks": [
+    "tasks/addition-smoke.json",
+    "tasks/email-case.json",
+    "tasks/pagination-boundary.json",
+    "tasks/cache-expiry.json",
+    "tasks/inventory-reservations.json",
+    "tasks/config-falsy-overrides.json",
+    "tasks/intervals-open-boundary.json",
+    "tasks/money-half-up.json",
+    "tasks/audit-nested-redaction.json",
+    "tasks/query-repeated-values.json"
+  ]
+}

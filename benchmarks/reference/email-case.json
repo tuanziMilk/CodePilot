@@ -1,0 +1,7 @@
+{
+  "task_id": "email-case",
+  "path": "email_utils.py",
+  "old": "{mailbox.lower()}@{domain.lower()}",
+  "new": "{mailbox}@{domain.lower()}",
+  "baseline_definition_sha256": "6aee077e83b891dccc9042c5d86d88d69e3b4db0379cce5152b60d1a9caad111"
+}

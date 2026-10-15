@@ -1,0 +1,7 @@
+{
+  "task_id": "config-falsy-overrides",
+  "path": "settings_app/merge.py",
+  "old": "overrides.get(key) or defaults.get(key)",
+  "new": "overrides[key]",
+  "baseline_definition_sha256": "cab63cbe71e46edc337e17c720dab8b347288d6111fb434ace8e4ab9ded9407a"
+}

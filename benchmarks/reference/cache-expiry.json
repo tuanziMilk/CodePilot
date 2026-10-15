@@ -1,0 +1,7 @@
+{
+  "task_id": "cache-expiry",
+  "path": "store/cache.py",
+  "old": "self.clock() > expires_at",
+  "new": "self.clock() >= expires_at",
+  "baseline_definition_sha256": "d0398011b8b06be19634ff0db629c92e2a7bdebb0a5eec06f484b88e8d748d0e"
+}

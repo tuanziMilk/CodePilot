@@ -1,0 +1,7 @@
+{
+  "task_id": "money-half-up",
+  "path": "billing/money.py",
+  "old": "rounding=ROUND_HALF_EVEN",
+  "new": "rounding=ROUND_HALF_UP",
+  "baseline_definition_sha256": "31256936faa00613ac0f72e7f5ffc212c8be72602b77828313b68c7d0105e32c"
+}

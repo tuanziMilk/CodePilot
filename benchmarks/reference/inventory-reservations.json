@@ -1,0 +1,7 @@
+{
+  "task_id": "inventory-reservations",
+  "path": "shop/reservations.py",
+  "old": "totals[sku] = quantity",
+  "new": "totals[sku] = totals.get(sku, 0) + quantity",
+  "baseline_definition_sha256": "926d0e1243dda2d1edb7b683a9bdd767f9941c7be30bb1163fb46472d011a5ea"
+}

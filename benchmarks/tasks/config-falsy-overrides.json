@@ -1,0 +1,27 @@
+{
+  "task_id": "config-falsy-overrides",
+  "repository": "../repos/config-falsy-overrides",
+  "issue_description": "Explicit configuration overrides such as false, 0, and an empty string are ignored in favor of defaults. An override must win whenever its key is present, including an explicit null. Fall back only when that key is absent.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "settings_app/__init__.py",
+    "settings_app/defaults.py",
+    "settings_app/display.py",
+    "settings_app/merge.py",
+    "settings_app/startup.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "6b205d85bd4e7f814c974a2d6e404c6f23f2e7b5",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/config_falsy_overrides_test.py",
+  "difficulty": "medium",
+  "task_family": "configuration"
+}

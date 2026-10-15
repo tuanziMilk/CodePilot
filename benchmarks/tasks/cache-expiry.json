@@ -1,0 +1,26 @@
+{
+  "task_id": "cache-expiry",
+  "repository": "../repos/cache-expiry",
+  "issue_description": "A cached value is still returned exactly at its expiration timestamp. The contract says a value is valid only while now < expires_at. Preserve cache updates, missing-key behavior, and the injected clock used by tests.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "store/__init__.py",
+    "store/cache.py",
+    "store/clock.py",
+    "store/session.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "008699a4da4231747e2d01ea6953b65bb469e507",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/cache_expiry_test.py",
+  "difficulty": "medium",
+  "task_family": "state-boundary"
+}

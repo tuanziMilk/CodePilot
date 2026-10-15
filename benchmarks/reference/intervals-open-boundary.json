@@ -1,0 +1,7 @@
+{
+  "task_id": "intervals-open-boundary",
+  "path": "scheduling/intervals.py",
+  "old": "start <= merged[-1][1]",
+  "new": "start < merged[-1][1]",
+  "baseline_definition_sha256": "02b817d3a1588be0bf067794d5ba813f5d78e2988587c6b52556c3feec9239c1"
+}

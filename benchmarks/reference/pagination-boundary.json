@@ -1,0 +1,7 @@
+{
+  "task_id": "pagination-boundary",
+  "path": "pagination.py",
+  "old": "end = start + page_size - 1",
+  "new": "end = start + page_size",
+  "baseline_definition_sha256": "e7cd028372599fb2f9370882fbd5695e4dd638ab10516d399fd39ca4cfce0187"
+}

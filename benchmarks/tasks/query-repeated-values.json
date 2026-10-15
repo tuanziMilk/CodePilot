@@ -1,0 +1,28 @@
+{
+  "task_id": "query-repeated-values",
+  "repository": "../repos/query-repeated-values",
+  "issue_description": "Repeated query parameters lose all but the last value in generated search requests. Preserve every value in encounter order, including blanks, and continue percent-decoding keys/values. The request API maps each key to a list.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "search_app/__init__.py",
+    "search_app/history.py",
+    "search_app/query.py",
+    "search_app/ranking.py",
+    "search_app/render.py",
+    "search_app/request.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "9cb5fc890368ad630d6b472cab933a474b9a2077",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/query_repeated_values_test.py",
+  "difficulty": "hard",
+  "task_family": "multifile-integration"
+}

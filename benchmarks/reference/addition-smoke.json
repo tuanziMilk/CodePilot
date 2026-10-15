@@ -1,0 +1,7 @@
+{
+  "task_id": "addition-smoke",
+  "path": "calculator.py",
+  "old": "return a - b\n\n\ndef subtract",
+  "new": "return a + b\n\n\ndef subtract",
+  "baseline_definition_sha256": "d4ea6bc66c9b25b0424618dd6594320cb1fe4a6112ba6f41807a4bd818ea1322"
+}

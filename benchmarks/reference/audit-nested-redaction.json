@@ -1,0 +1,7 @@
+{
+  "task_id": "audit-nested-redaction",
+  "path": "audit/redaction.py",
+  "old": "return list(value)",
+  "new": "return [redact(item) for item in value]",
+  "baseline_definition_sha256": "87ec086bf24a1248de2b5ee7593cb1ad4256d7a4944c97d107d4c76f143afe03"
+}

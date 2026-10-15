@@ -1,0 +1,23 @@
+{
+  "task_id": "email-case",
+  "repository": "../repos/email-case",
+  "issue_description": "Address normalization corrupts case-sensitive mailbox names. Trim surrounding whitespace and lowercase the domain only; preserve mailbox spelling and the existing invalid-address behavior.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "email_utils.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "d44bfb28ad54e6b9e52923c6472999c56aca3955",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/email_case_test.py",
+  "difficulty": "easy",
+  "task_family": "normalization"
+}

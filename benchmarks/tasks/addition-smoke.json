@@ -1,0 +1,23 @@
+{
+  "task_id": "addition-smoke",
+  "repository": "../repos/addition-smoke",
+  "issue_description": "The calculator's addition operation returns an incorrect result for positive integers. Restore addition behavior without changing the other operations.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "calculator.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "3443af0c58a1aa35aa3e3c562e527a803df8b65e",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/addition_smoke_test.py",
+  "difficulty": "smoke",
+  "task_family": "arithmetic"
+}

@@ -1,0 +1,27 @@
+{
+  "task_id": "inventory-reservations",
+  "repository": "../repos/inventory-reservations",
+  "issue_description": "Checkout can oversell an item when the cart contains the same SKU on multiple lines. Reservation totals must sum quantities across all lines, and reject a checkout when a total exceeds stock. Keep independent SKUs independent.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "shop/__init__.py",
+    "shop/catalog.py",
+    "shop/checkout.py",
+    "shop/reservations.py",
+    "shop/shipping.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "03c30f816e614552754433945c32bebb06a2f2e8",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/inventory_reservations_test.py",
+  "difficulty": "medium",
+  "task_family": "multifile-localization"
+}

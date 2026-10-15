@@ -1,0 +1,26 @@
+{
+  "task_id": "money-half-up",
+  "repository": "../repos/money-half-up",
+  "issue_description": "Invoice totals round an exact half-cent downward, contrary to the billing contract: apply a percentage discount using decimal arithmetic and round the final amount to two places with ROUND_HALF_UP. Keep rate validation and do not round each line separately.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "billing/__init__.py",
+    "billing/formatting.py",
+    "billing/invoice.py",
+    "billing/money.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "ea24c972ee59119a3ebc399e6b6fabf0b9700554",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/money_half_up_test.py",
+  "difficulty": "medium",
+  "task_family": "decimal-rounding"
+}
