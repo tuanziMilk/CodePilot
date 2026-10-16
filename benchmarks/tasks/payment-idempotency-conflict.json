@@ -1,0 +1,28 @@
+{
+  "task_id": "payment-idempotency-conflict",
+  "repository": "../repos/payment-idempotency-conflict",
+  "issue_description": "Payment idempotency keys currently return a cached success even when reused for a different amount, and failed gateway responses become permanently cached. Reuse a successful response only for the same amount; reject conflicts and allow failures to retry.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "payments/__init__.py",
+    "payments/audit.py",
+    "payments/errors.py",
+    "payments/gateway.py",
+    "payments/receipts.py",
+    "payments/service.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "86e43521d56d9118cfd8b661f0954f14434f158e",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/payment_idempotency_conflict_test.py",
+  "difficulty": "challenge",
+  "task_family": "stateful-idempotency"
+}

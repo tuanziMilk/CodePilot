@@ -39,6 +39,7 @@ class RunState:
     repair_retry_count: int = 0
     plan_version: int = 0
     plan_steps: list[str] = field(default_factory=list)
+    plan_noop_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -155,7 +156,7 @@ class AgentHarness:
                         requires_reproduction=requires_reproduction,
                     )
                     self._observe_test_failure(state, call, result)
-                    self._observe_plan(state, call, result)
+                    result = self._observe_plan(state, call, result)
                     state.messages.append(tool_observation(result))
                     self._trajectory.write_event(
                         TrajectoryEvent(
@@ -166,7 +167,11 @@ class AgentHarness:
                             tool_arguments=call.arguments,
                             tool_result_summary=result.output_summary,
                             return_code=result.return_code,
-                            state_change=f"tool_{result.status.value}",
+                            state_change=(
+                                "tool_plan_unchanged"
+                                if result.data.get("plan_changed") is False
+                                else f"tool_{result.status.value}"
+                            ),
                             retry_count=state.repair_retry_count,
                             plan_version=state.plan_version or None,
                             plan_steps=state.plan_steps or None,
@@ -271,10 +276,26 @@ class AgentHarness:
             state.reproduction_failure_observed = True
 
     @staticmethod
-    def _observe_plan(state: RunState, call: ToolCall, result: ToolResult) -> None:
-        if call.name == "update_plan" and result.status.value == "ok":
-            state.plan_version += 1
-            state.plan_steps = list(result.data["steps"])
+    def _observe_plan(state: RunState, call: ToolCall, result: ToolResult) -> ToolResult:
+        """Record material plan changes while making identical updates observable no-ops."""
+
+        if call.name != "update_plan" or result.status is not ToolStatus.OK:
+            return result
+        steps = list(result.data["steps"])
+        if steps == state.plan_steps:
+            state.plan_noop_count += 1
+            return result.model_copy(
+                update={
+                    "output_summary": (
+                        "Plan unchanged; no new version was recorded. Do not repeat the same "
+                        "plan. Continue with the next action, or finish if verification is ready."
+                    ),
+                    "data": {**result.data, "plan_changed": False},
+                }
+            )
+        state.plan_version += 1
+        state.plan_steps = steps
+        return result.model_copy(update={"data": {**result.data, "plan_changed": True}})
 
     def _system_prompt(self, requires_reproduction: bool, verification_command: str) -> str:
         additions = [
@@ -292,7 +313,9 @@ class AgentHarness:
             )
         if self._require_plan:
             additions.append(
-                "Before other tools, call update_plan with 1 to 6 short public execution steps."
+                "Before other tools, call update_plan with 1 to 6 short public execution steps. "
+                "Call it again only when the plan materially changes; never repeat an unchanged "
+                "plan. After the declared test passes, finish without another plan update."
             )
         return f"{SYSTEM_PROMPT} {' '.join(additions)}" if additions else SYSTEM_PROMPT
 

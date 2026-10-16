@@ -1,0 +1,28 @@
+{
+  "task_id": "dependency-cycle-order",
+  "repository": "../repos/dependency-cycle-order",
+  "issue_description": "Deployment planning silently accepts dependency cycles. Return each dependency before its consumer in stable manifest order, include dependency-only nodes once, and raise DependencyCycleError for any reachable cycle.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "deploy/__init__.py",
+    "deploy/errors.py",
+    "deploy/manifest.py",
+    "deploy/planner.py",
+    "deploy/render.py",
+    "deploy/runner.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "56ca5f0c1b277ce7c7039ed41047648a3107a721",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/dependency_cycle_order_test.py",
+  "difficulty": "challenge",
+  "task_family": "graph-invariant"
+}

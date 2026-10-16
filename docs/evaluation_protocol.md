@@ -12,6 +12,10 @@ python run.py eval --suite benchmarks/suite.json --config basic --config full
 python run.py eval --suite benchmarks/suite.json --repeat 3
 ```
 
+先验证难度区分时使用 `benchmarks/challenge_suite.json`，它只包含 5 道状态、图、事件和
+重试类任务。报告额外统计 Retrieval Hit@1/Hit@3、平均 read/search 次数、permission denial
+和重复 Plan no-op；这些都是可观察 Harness 行为，不包含模型隐藏 reasoning。
+
 `--list` / `--dry-run` 检查任务、基线 SHA、外部验收文件和重复项，列出将运行的 case 数；不读 API Key，不调用 LLM，不新建实验目录。实际运行才会使用你配置的模型服务，并按 case 产生真实请求。
 
 可以重复传 `--task-file` 来选择几个 TaskSpec；`--suite` 的 tasks 路径相对 suite.json。重复 task_id 或 configuration 会在写文件前被拒绝。`--case-timeout 600` 是单次 Agent CLI 的时间限制，`--test-timeout 120` 是每次测试检查的限制，Git 命令限时 30 秒。

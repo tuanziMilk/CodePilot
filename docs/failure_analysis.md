@@ -1,7 +1,15 @@
 # 失败分析：从真实 trajectory 得到的改进
 
-以下来自旧目录 CodePilot 的 2026-09 调试记录。它们属于历史诊断样本，使用旧 prompt/工具配置，
-不是 `codepilot_complete` 当前版本的性能结果。
+本文同时保留当前实验与旧目录 CodePilot 的 2026-09 调试记录。标为旧记录的样本使用旧
+prompt/工具配置，不代表 `codepilot_complete` 当前版本性能。
+
+## 2026-10-15：10 题四配置真实实验
+
+40/40 case 通过，说明评测链路可靠，但成功率出现天花板。Lexical Retrieval 以最终修改文件为
+相关项时 Hit@1=40%、Hit@3=100%；平均 read_file 从 4.3 降到 3.5。20 个 planning runs
+产生 34 次 `update_plan`，其中 13 次额外调用内容完全相同。当前版本把相同 Plan 记为 no-op，
+不再增加 `plan_version`，并明确提示模型继续执行或结束。该改动能修正状态与报告，但是否减少
+模型轮次仍须通过 challenge suite 实测。
 
 ## 代码修复正确，但 run 仍为 max_steps
 
@@ -16,7 +24,7 @@ Spring `Result.success(payload)` 的源码被正确从 `code=0` 改为 `code=1`�
 lexical 组首轮命中目标源码和测试，也检索出一段无关 interceptor；模型随后仍调用 list_files。
 无检索组依靠任务中的 API 名也很快定位。因此单次少两步不能归因于 retrieval。
 
-本版提供 10 个不同问题和四组开关，等待用固定任务集实测。若 full 比 basic 更慢或成功率更低，
+本版提供 10 个回归问题、5 个 challenge 问题和四组开关。若 full 比 basic 更慢或成功率更低，
 应保留结果并分析工具拒绝、定位步骤、上下文噪声和预算，而不是不断调任务直到检索获胜。
 
 ## Basic 没强制计划，仍主动调用计划

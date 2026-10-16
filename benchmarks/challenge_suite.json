@@ -1,0 +1,9 @@
+{
+  "tasks": [
+    "tasks/atomic-batch-reservation.json",
+    "tasks/dependency-cycle-order.json",
+    "tasks/payment-idempotency-conflict.json",
+    "tasks/profile-event-versioning.json",
+    "tasks/retry-error-classification.json"
+  ]
+}

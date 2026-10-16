@@ -20,7 +20,7 @@ python run.py validate
 python run.py demo
 ```
 
-`prepare` 准备 10 个 Git repo、TaskSpec、外部 acceptance test 和 reference fix。已经存在且
+`prepare` 准备 15 个 Git repo、TaskSpec、外部 acceptance test 和 reference fix。已经存在且
 干净的基线会复用；若你直接修改过它，命令会拒绝覆盖，保护你的文件。
 
 `validate` 新克隆两个 workspace：baseline 保留 Bug，reference 应用已知修复，然后分别跑可见
@@ -96,11 +96,13 @@ artifacts/evaluations/<time>/
 python run.py eval --suite benchmarks\suite.json --config basic --config full
 ```
 
-需要四组完整比较时，40 个 Agent runs：
+先对 5 道 challenge 题做四组比较，共 20 个 Agent runs：
 
 ```powershell
-python run.py eval --suite benchmarks\suite.json
+python run.py eval --suite benchmarks\challenge_suite.json
 ```
+
+完整 15 题是 60 个 runs：`python run.py eval --suite benchmarks\suite.json`。
 
 每次运行都创建新时间戳目录，可重复执行，不用手动恢复源码。`--repeat 3` 表示每个 task/config
 各运行三次。单次硬超时用 `--case-timeout` 控制，评估侧本地测试超时用 `--test-timeout` 控制。

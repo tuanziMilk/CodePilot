@@ -1,6 +1,6 @@
 # 第一版任务集与本地验收
 
-这 10 道题由本项目生成，都是合成 Python 仓库，不包含原 Spring 项目或其他个人业务代码。
+这 15 道题由本项目生成，都是合成 Python 仓库，不包含原 Spring 项目或其他个人业务代码。
 只依赖 Python 标准库与 pytest，执行 `python run.py prepare` 后即可使用。
 
 | Task ID | 层级 | 主要行为 | 仓库实现模块 |
@@ -15,9 +15,15 @@
 | money-half-up | medium | Decimal 舍入规则与聚合后统一舍入 | 3 |
 | audit-nested-redaction | hard | 字典/列表递归脱敏且不修改输入 | 4 |
 | query-repeated-values | hard | 多文件请求路径中重复查询参数保序 | 5 |
+| atomic-batch-reservation | challenge | 批量库存的聚合校验与事务原子性 | 5 |
+| dependency-cycle-order | challenge | 稳定拓扑排序、共享依赖与环检测 | 5 |
+| payment-idempotency-conflict | challenge | 幂等键载荷冲突与失败重试状态 | 5 |
+| profile-event-versioning | challenge | 乱序、重复、冲突与缺口事件投影 | 5 |
+| retry-error-classification | challenge | 永久/瞬态错误分类与精确重试预算 | 5 |
 
-层级是任务内部的相对分类，不意味着达到真实工业项目的 hard 难度。每题故障源于一个
-独立修复点，参考修复很短；多文件题保留有业务作用的兄弟模块，不以复制无关文件制造难度。
+层级是任务内部的相对分类，不意味着达到真实工业项目的 hard 难度。前 10 题用于稳定回归；
+challenge 题增加跨文件契约、状态不变量和隐藏边界，但仍保持单一根因与短参考修复。多文件题
+保留有业务作用的兄弟模块，不以复制无关文件制造难度。
 问题描述给出预期行为，不直接给出待修改源码路径。`allowed_files` 列出仓库的全部实现
 源文件，避免只有一个可写文件时由权限失败直接暴露答案。
 
@@ -42,7 +48,8 @@ python -m codepilot.benchmarks.prepare --output benchmarks_new
 
 ```text
 benchmarks/
-  suite.json
+  suite.json                 # 全部 15 题
+  challenge_suite.json       # 5 道较难题
   tasks/*.json             # Agent 任务和 evaluator 元数据
   repos/<task_id>/         # 含 Bug、visible test 和 .git 的独立 baseline
   acceptance/*_test.py     # 独立验收，不在 Agent workspace

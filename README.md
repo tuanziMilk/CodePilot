@@ -4,8 +4,9 @@ CodePilot 用自建 Python Harness 执行仓库定位、失败复现、精确编
 模型通过结构化 ToolCall 提出动作，程序负责校验、执行、记录和判定成功；支持 DeepSeek 等
 OpenAI-compatible Chat Completions 接口。此目录是独立版本，原 `../codepilot` 保持原样。
 
-当前交付包含完整运行代码、10 个自包含 Python 任务、四组实验配置、额外验收测试、报告生成和
-离线 Demo。**当前版本的真实 LLM 成功率尚未测量**；脚本 Demo 和参考修复验证不代表模型性能。
+当前交付包含完整运行代码、15 个自包含 Python 任务、四组实验配置、额外验收测试、报告生成和
+离线 Demo。旧 10 题回归集已完成一次真实 DeepSeek 四配置实验；新增 5 题 challenge 集尚待
+实测。脚本 Demo 和参考修复验证不计入模型性能。
 
 ## 开始使用
 
@@ -52,10 +53,11 @@ python run.py eval --task-file benchmarks\tasks\addition-smoke.json --config bas
 API 调用与费用。确认流程后运行全部任务、四组配置：
 
 ```powershell
-python run.py eval --suite benchmarks\suite.json
+python run.py eval --suite benchmarks\challenge_suite.json
 ```
 
-默认是 10 tasks × 4 configs × 1 repeat；重复试验可加 `--repeat 3`。同一批结果比较时须保持
+建议先跑 5 challenge tasks × 4 configs × 1 repeat；完整 `benchmarks\suite.json` 是
+15 tasks × 4 configs。重复试验可加 `--repeat 3`。同一批结果比较时须保持
 模型、预算、prompt、工具策略与任务集相同。
 
 ## 查看与解释结果
@@ -68,7 +70,8 @@ python run.py view "<artifact_dir>\trajectory.jsonl"
 ```
 
 JSON 保留逐轮 token、退出码、耗时、动作和工具结果；viewer 同时显示检索、工具状态、验证和
-终止。最终报告统计成功率、测试通过、平均 steps、retry、token、latency、工具错误和拒绝。
+终止。最终报告统计成功率、测试通过、steps、retry、token、latency、工具错误和拒绝，并在新
+运行中统计 read/search 次数、重复 Plan no-op 与 Retrieval Hit@1/Hit@3。
 缺失值不会伪装成 0；`cost=null` 表示服务没有提供可用费用数据。
 
 | 配置 | Planning | 修改前失败复现 | Lexical retrieval |
@@ -85,7 +88,7 @@ reproduction 各自的因果收益；也不能凭一次成功宣称检索有效�
 
 - [最短操作手册](docs/quickstart_zh.md)：具体命令、生成目录和学习顺序。
 - [架构与核心设计](docs/architecture.md)：Provider、状态、工具、权限、验证与日志的职责。
-- [任务说明](docs/benchmark_catalog.md)：10 道合成任务的症状、难度和局限。
+- [任务说明](docs/benchmark_catalog.md)：10 道回归题、5 道 challenge 题及其局限。
 - [实验协议](docs/evaluation_protocol.md)：基线、验收、指标与可比较性。
 - [失败分析](docs/failure_analysis.md)：此前真实运行揭示的问题及本版修正。
 - [简历与 Demo 讲解](docs/resume_and_demo.md)：可直接使用的事实描述与待实测数字。

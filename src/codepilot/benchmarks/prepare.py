@@ -48,6 +48,7 @@ def prepare_suite(root: Path) -> dict:
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
     manifest = {"tasks": []}
+    challenge_manifest = {"tasks": []}
     commits = {}
     for task in task_definitions():
         files = baseline_files(task)
@@ -108,11 +109,21 @@ def prepare_suite(root: Path) -> dict:
         spec_path.parent.mkdir(parents=True, exist_ok=True)
         spec_path.write_text(json.dumps(spec, indent=2) + "\n", encoding="utf-8", newline="\n")
         manifest["tasks"].append(f"tasks/{task.task_id}.json")
+        if task.difficulty == "challenge":
+            challenge_manifest["tasks"].append(f"tasks/{task.task_id}.json")
         commits[task.task_id] = commit
     (root / "suite.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n",
     )
-    return {"suite": str(root / "suite.json"), "task_count": len(commits), "commits": commits}
+    (root / "challenge_suite.json").write_text(
+        json.dumps(challenge_manifest, indent=2) + "\n", encoding="utf-8", newline="\n",
+    )
+    return {
+        "suite": str(root / "suite.json"),
+        "challenge_suite": str(root / "challenge_suite.json"),
+        "task_count": len(commits),
+        "commits": commits,
+    }
 
 
 def main() -> None:

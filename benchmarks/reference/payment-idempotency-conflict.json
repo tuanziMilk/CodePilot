@@ -1,0 +1,7 @@
+{
+  "task_id": "payment-idempotency-conflict",
+  "path": "payments/service.py",
+  "old": "class PaymentService:\n    def __init__(self, gateway):\n        self.gateway = gateway\n        self._responses = {}\n\n    def charge(self, key, amount):\n        if key in self._responses:\n            return self._responses[key]\n        response = self.gateway.charge(amount)\n        self._responses[key] = response\n        return response\n",
+  "new": "class PaymentService:\n    def __init__(self, gateway):\n        self.gateway = gateway\n        self._records = {}\n\n    def charge(self, key, amount):\n        if key in self._records:\n            previous_amount, response = self._records[key]\n            if previous_amount != amount:\n                raise IdempotencyConflict(key)\n            return response\n        response = self.gateway.charge(amount)\n        if response.get(\"ok\"):\n            self._records[key] = (amount, response)\n        return response\n",
+  "baseline_definition_sha256": "ff14d6cec07fba597ccd9926d90a473867c04778b4f592639ac56d7752d7a02f"
+}

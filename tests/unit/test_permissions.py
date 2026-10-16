@@ -11,6 +11,7 @@ from codepilot.permissions.policy import PermissionDenied, PermissionPolicy
         "git reset --hard",
         "mvn -pl common -Dtest=ResultFactoryTest test",
         "mvn -o -pl common clean test",
+        'python -c "print(1)"',
     ],
 )
 def test_dangerous_or_composed_commands_are_denied(command: str) -> None:

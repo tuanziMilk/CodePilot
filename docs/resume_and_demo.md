@@ -8,7 +8,7 @@
   预算终止与外部验证；区分 API 请求重试与任务修复重试。
 - 实现 Workspace 路径校验、命令白名单与精确编辑工具，输出逐步 trajectory、Git diff、
   token/latency 与工具错误记录，支持人工回溯。
-- 实现 lexical repository retrieval 与四组实验开关，提供 10 个带固定 Git 故障基线、
+- 实现 lexical repository retrieval 与四组实验开关，提供 15 个带固定 Git 故障基线、
   可见测试及额外验收的合成任务；Evaluator 自动克隆隔离工作区并输出 JSON/CSV/Markdown 报告。
 
 正式运行后才能追加：“在 N 个任务、每组 R 次重复中，成功率由 A% 变为 B%，平均 token 改变 C%。”

@@ -315,6 +315,17 @@ def _read_single(parent: Path, name: str) -> dict[str, Any]:
     return result
 
 
+def retrieval_hit_rank(changed_files: list[str], retrieval_paths: list[str]) -> int | None:
+    """Return the one-based rank of the first changed file retrieved, if any."""
+
+    ranks = [
+        retrieval_paths.index(path) + 1
+        for path in changed_files
+        if path in retrieval_paths
+    ]
+    return min(ranks) if ranks else None
+
+
 def run_case(
     *,
     project_root: Path,
@@ -432,12 +443,18 @@ def run_case(
                     "verification_passed",
                     "steps",
                     "retry_count",
+                    "plan_version",
+                    "plan_noop_count",
                     "token_usage",
                     "metrics",
                     "retrieval_paths",
                     "artifact_dir",
                 ):
                     record[key] = summary.get(key)
+                record["retrieval_hit_rank"] = retrieval_hit_rank(
+                    list(record.get("changed_files") or []),
+                    list(record.get("retrieval_paths") or []),
+                )
                 safe_fields = {
                     "provider",
                     "model",
@@ -524,6 +541,13 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             "llm_latency_ms": ("metrics", "llm_latency_ms"),
             "tool_error_count": ("metrics", "tool_error_count"),
             "tool_denied_count": ("metrics", "tool_denied_count"),
+            "tool_call_count": ("metrics", "tool_call_count"),
+            "list_files_count": ("metrics", "list_files_count"),
+            "read_file_count": ("metrics", "read_file_count"),
+            "search_text_count": ("metrics", "search_text_count"),
+            "bash_count": ("metrics", "bash_count"),
+            "update_plan_count": ("metrics", "update_plan_count"),
+            "plan_noop_count": ("metrics", "plan_noop_count"),
         }.items():
             samples = []
             for record in group:
@@ -534,10 +558,42 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
                     samples.append(item)
             values[f"avg_{output}"] = sum(samples) / len(samples) if samples else None
             values[f"{output}_samples"] = len(samples)
-            if output in {"tool_error_count", "tool_denied_count"}:
-                values["tool_errors" if output == "tool_error_count" else "tool_denied"] = (
-                    sum(samples) if samples else None
-                )
+            totals = {
+                "tool_error_count": "tool_errors",
+                "tool_denied_count": "tool_denied",
+                "plan_noop_count": "plan_noops",
+            }
+            if output in totals:
+                values[totals[output]] = sum(samples) if samples else None
+        retrieval_records = [
+            record
+            for record in group
+            if (record.get("configuration") or {}).get("retrieval_mode") == "lexical"
+        ]
+        ranks = [
+            record.get("retrieval_hit_rank")
+            if "retrieval_hit_rank" in record
+            else retrieval_hit_rank(
+                list(record.get("changed_files") or []),
+                list(record.get("retrieval_paths") or []),
+            )
+            for record in retrieval_records
+        ]
+        values["retrieval_samples"] = len(retrieval_records)
+        values["retrieval_hit_at_1"] = sum(rank == 1 for rank in ranks)
+        values["retrieval_hit_at_3"] = sum(
+            isinstance(rank, int) and rank <= 3 for rank in ranks
+        )
+        values["retrieval_hit_at_1_rate"] = (
+            values["retrieval_hit_at_1"] / len(retrieval_records)
+            if retrieval_records
+            else None
+        )
+        values["retrieval_hit_at_3_rate"] = (
+            values["retrieval_hit_at_3"] / len(retrieval_records)
+            if retrieval_records
+            else None
+        )
         by_config[name] = values
     return {"run_count": len(records), "by_config": by_config, "records": records}
 

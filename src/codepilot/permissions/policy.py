@@ -60,7 +60,11 @@ class PermissionPolicy:
         if any(fragment in lowered for fragment in self._PROTECTED_FRAGMENTS):
             raise PermissionDenied("Command refers to a protected workspace area.")
         if any(operator in normalized for operator in self._SHELL_OPERATORS):
-            raise PermissionDenied("Shell composition and expansion are not allowed. Run one command at a time.")
+            raise PermissionDenied(
+                "Shell composition, expansion, and inline python -c snippets are not allowed. "
+                "Do not retry by rewriting the same command. Use file tools or the declared "
+                "pytest command, one command at a time."
+            )
 
         try:
             tokens = shlex.split(normalized, posix=True)
@@ -89,7 +93,8 @@ class PermissionPolicy:
         raise PermissionDenied(
             "Command denied. Use file tools for paths/search, git diff/status, "
             "python -m pytest -q, or mvn -o -pl <module> -Dtest=<Class> test. "
-            "Do not add shell operators, network options, output paths or skip-test flags."
+            "Do not retry an equivalent denied command or add shell operators, inline code, "
+            "network options, output paths or skip-test flags."
         )
 
     def _is_bounded_pytest(self, arguments: list[str]) -> bool:

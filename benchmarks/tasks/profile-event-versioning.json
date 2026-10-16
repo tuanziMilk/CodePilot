@@ -1,0 +1,28 @@
+{
+  "task_id": "profile-event-versioning",
+  "repository": "../repos/profile-event-versioning",
+  "issue_description": "Profile events may arrive out of order or be delivered twice. Build the projection in contiguous version order starting at 1, ignore identical duplicates, reject conflicting duplicates or gaps, and do not mutate event payloads.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "profiles/__init__.py",
+    "profiles/errors.py",
+    "profiles/events.py",
+    "profiles/projector.py",
+    "profiles/render.py",
+    "profiles/store.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "c10d705f493272d92209a3aa335950cba1f17367",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/profile_event_versioning_test.py",
+  "difficulty": "challenge",
+  "task_family": "event-projection"
+}

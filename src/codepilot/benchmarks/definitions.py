@@ -631,4 +631,612 @@ def task_definitions() -> tuple[BenchmarkTask, ...]:
                 '''),
             "search_app/query.py", "values[key] = [value]", "values.setdefault(key, []).append(value)",
         ),
+        BenchmarkTask(
+            "atomic-batch-reservation", "challenge", "transactional-state",
+            "A failed batch reservation can leave earlier stock rows decremented. Treat the "
+            "whole batch atomically, combine duplicate SKU quantities before checking stock, "
+            "reject nonpositive quantities, and preserve the existing successful return shape.",
+            {
+                "warehouse/__init__.py": "",
+                "warehouse/errors.py": source('''
+                    class InvalidQuantity(ValueError):
+                        pass
+
+
+                    class InsufficientStock(ValueError):
+                        pass
+                    '''),
+                "warehouse/inventory.py": source('''
+                    from warehouse.errors import InsufficientStock, InvalidQuantity
+
+
+                    def reserve_batch(stock, lines):
+                        reserved = {}
+                        for sku, quantity in lines:
+                            if quantity <= 0:
+                                raise InvalidQuantity(sku)
+                            available = stock.get(sku, 0)
+                            if available < quantity:
+                                raise InsufficientStock(sku)
+                            stock[sku] = available - quantity
+                            reserved[sku] = reserved.get(sku, 0) + quantity
+                        return reserved
+                    '''),
+                "warehouse/checkout.py": source('''
+                    from warehouse.inventory import reserve_batch
+                    from warehouse.receipts import reservation_receipt
+
+
+                    def checkout(stock, lines):
+                        return reservation_receipt(reserve_batch(stock, lines))
+                    '''),
+                "warehouse/receipts.py": source('''
+                    def reservation_receipt(reserved):
+                        return {"items": dict(sorted(reserved.items())), "units": sum(reserved.values())}
+                    '''),
+                "warehouse/catalog.py": source('''
+                    def available_skus(stock):
+                        return sorted(sku for sku, quantity in stock.items() if quantity > 0)
+                    '''),
+            },
+            source('''
+                import pytest
+                from warehouse.errors import InsufficientStock
+                from warehouse.inventory import reserve_batch
+
+
+                def test_failed_batch_rolls_back_earlier_rows():
+                    stock = {"tea": 2, "cup": 1}
+                    with pytest.raises(InsufficientStock):
+                        reserve_batch(stock, [("tea", 1), ("cup", 2)])
+                    assert stock == {"tea": 2, "cup": 1}
+                '''),
+            source('''
+                import pytest
+                from warehouse.checkout import checkout
+                from warehouse.errors import InsufficientStock, InvalidQuantity
+                from warehouse.inventory import reserve_batch
+
+
+                def test_duplicate_skus_are_validated_as_one_atomic_request():
+                    stock = {"tea": 2}
+                    with pytest.raises(InsufficientStock):
+                        reserve_batch(stock, [("tea", 1), ("tea", 2)])
+                    assert stock == {"tea": 2}
+
+
+                def test_success_preserves_shape_and_inputs():
+                    stock = {"tea": 5, "cup": 2}
+                    lines = [("tea", 1), ("cup", 1), ("tea", 2)]
+                    assert checkout(stock, lines) == {
+                        "items": {"cup": 1, "tea": 3}, "units": 4
+                    }
+                    assert stock == {"tea": 2, "cup": 1}
+                    assert lines == [("tea", 1), ("cup", 1), ("tea", 2)]
+
+
+                @pytest.mark.parametrize("lines,error", [
+                    ([("missing", 1)], InsufficientStock),
+                    ([("tea", 0)], InvalidQuantity),
+                    ([("tea", -1)], InvalidQuantity),
+                ])
+                def test_invalid_batches_do_not_mutate(lines, error):
+                    stock = {"tea": 2}
+                    with pytest.raises(error):
+                        reserve_batch(stock, lines)
+                    assert stock == {"tea": 2}
+                '''),
+            "warehouse/inventory.py",
+            source('''
+                def reserve_batch(stock, lines):
+                    reserved = {}
+                    for sku, quantity in lines:
+                        if quantity <= 0:
+                            raise InvalidQuantity(sku)
+                        available = stock.get(sku, 0)
+                        if available < quantity:
+                            raise InsufficientStock(sku)
+                        stock[sku] = available - quantity
+                        reserved[sku] = reserved.get(sku, 0) + quantity
+                    return reserved
+                '''),
+            source('''
+                def reserve_batch(stock, lines):
+                    reserved = {}
+                    for sku, quantity in lines:
+                        if quantity <= 0:
+                            raise InvalidQuantity(sku)
+                        reserved[sku] = reserved.get(sku, 0) + quantity
+                    for sku, quantity in reserved.items():
+                        if stock.get(sku, 0) < quantity:
+                            raise InsufficientStock(sku)
+                    for sku, quantity in reserved.items():
+                        stock[sku] -= quantity
+                    return reserved
+                '''),
+        ),
+        BenchmarkTask(
+            "dependency-cycle-order", "challenge", "graph-invariant",
+            "Deployment planning silently accepts dependency cycles. Return each dependency "
+            "before its consumer in stable manifest order, include dependency-only nodes once, "
+            "and raise DependencyCycleError for any reachable cycle.",
+            {
+                "deploy/__init__.py": "",
+                "deploy/errors.py": source('''
+                    class DependencyCycleError(ValueError):
+                        pass
+                    '''),
+                "deploy/planner.py": source('''
+                    from deploy.errors import DependencyCycleError
+
+
+                    def deployment_order(graph, roots):
+                        visited = set()
+                        order = []
+
+                        def visit(node):
+                            if node in visited:
+                                return
+                            visited.add(node)
+                            for dependency in graph.get(node, []):
+                                visit(dependency)
+                            order.append(node)
+
+                        for root in roots:
+                            visit(root)
+                        return order
+                    '''),
+                "deploy/manifest.py": source('''
+                    def dependency_graph(entries):
+                        return {entry["name"]: list(entry.get("depends_on", [])) for entry in entries}
+                    '''),
+                "deploy/runner.py": source('''
+                    from deploy.manifest import dependency_graph
+                    from deploy.planner import deployment_order
+
+
+                    def plan_manifest(entries, roots):
+                        return deployment_order(dependency_graph(entries), roots)
+                    '''),
+                "deploy/render.py": source('''
+                    def render_plan(order):
+                        return " -> ".join(order)
+                    '''),
+            },
+            source('''
+                import pytest
+                from deploy.errors import DependencyCycleError
+                from deploy.planner import deployment_order
+
+
+                def test_reachable_cycle_is_rejected():
+                    with pytest.raises(DependencyCycleError):
+                        deployment_order({"api": ["db"], "db": ["api"]}, ["api"])
+                '''),
+            source('''
+                import pytest
+                from deploy.errors import DependencyCycleError
+                from deploy.planner import deployment_order
+
+
+                def test_shared_and_dependency_only_nodes_are_stable():
+                    graph = {"api": ["db", "cache"], "db": ["network"], "cache": ["network"]}
+                    original = {key: list(value) for key, value in graph.items()}
+                    assert deployment_order(graph, ["api"]) == ["network", "db", "cache", "api"]
+                    assert graph == original
+
+
+                def test_multiple_roots_are_not_duplicated():
+                    assert deployment_order({"web": ["core"], "worker": ["core"]},
+                                            ["web", "worker"]) == ["core", "web", "worker"]
+
+
+                def test_self_and_deep_cycles_raise():
+                    with pytest.raises(DependencyCycleError):
+                        deployment_order({"a": ["a"]}, ["a"])
+                    with pytest.raises(DependencyCycleError):
+                        deployment_order({"a": ["b"], "b": ["c"], "c": ["b"]}, ["a"])
+                '''),
+            "deploy/planner.py",
+            source('''
+                def deployment_order(graph, roots):
+                    visited = set()
+                    order = []
+
+                    def visit(node):
+                        if node in visited:
+                            return
+                        visited.add(node)
+                        for dependency in graph.get(node, []):
+                            visit(dependency)
+                        order.append(node)
+
+                    for root in roots:
+                        visit(root)
+                    return order
+                '''),
+            source('''
+                def deployment_order(graph, roots):
+                    complete = set()
+                    active = set()
+                    order = []
+
+                    def visit(node):
+                        if node in active:
+                            raise DependencyCycleError(node)
+                        if node in complete:
+                            return
+                        active.add(node)
+                        for dependency in graph.get(node, []):
+                            visit(dependency)
+                        active.remove(node)
+                        complete.add(node)
+                        order.append(node)
+
+                    for root in roots:
+                        visit(root)
+                    return order
+                '''),
+        ),
+        BenchmarkTask(
+            "payment-idempotency-conflict", "challenge", "stateful-idempotency",
+            "Payment idempotency keys currently return a cached success even when reused for a "
+            "different amount, and failed gateway responses become permanently cached. Reuse a "
+            "successful response only for the same amount; reject conflicts and allow failures to retry.",
+            {
+                "payments/__init__.py": "",
+                "payments/errors.py": source('''
+                    class IdempotencyConflict(ValueError):
+                        pass
+                    '''),
+                "payments/gateway.py": source('''
+                    class ScriptedGateway:
+                        def __init__(self, responses):
+                            self.responses = list(responses)
+                            self.calls = []
+
+                        def charge(self, amount):
+                            self.calls.append(amount)
+                            return self.responses.pop(0)
+                    '''),
+                "payments/service.py": source('''
+                    from payments.errors import IdempotencyConflict
+
+
+                    class PaymentService:
+                        def __init__(self, gateway):
+                            self.gateway = gateway
+                            self._responses = {}
+
+                        def charge(self, key, amount):
+                            if key in self._responses:
+                                return self._responses[key]
+                            response = self.gateway.charge(amount)
+                            self._responses[key] = response
+                            return response
+                    '''),
+                "payments/receipts.py": source('''
+                    def receipt(response):
+                        return {"payment_id": response.get("id"), "accepted": bool(response.get("ok"))}
+                    '''),
+                "payments/audit.py": source('''
+                    def audit_entry(key, amount):
+                        return {"key": key, "amount": amount}
+                    '''),
+            },
+            source('''
+                import pytest
+                from payments.errors import IdempotencyConflict
+                from payments.gateway import ScriptedGateway
+                from payments.service import PaymentService
+
+
+                def test_key_reuse_with_different_amount_is_rejected():
+                    service = PaymentService(ScriptedGateway([{"ok": True, "id": "p1"}]))
+                    service.charge("order-1", 10)
+                    with pytest.raises(IdempotencyConflict):
+                        service.charge("order-1", 11)
+                '''),
+            source('''
+                import pytest
+                from payments.errors import IdempotencyConflict
+                from payments.gateway import ScriptedGateway
+                from payments.service import PaymentService
+
+
+                def test_same_request_reuses_one_successful_gateway_call():
+                    gateway = ScriptedGateway([{"ok": True, "id": "p1"}])
+                    service = PaymentService(gateway)
+                    first = service.charge("order-1", 10)
+                    assert service.charge("order-1", 10) is first
+                    assert gateway.calls == [10]
+
+
+                def test_failure_is_not_cached_and_can_retry():
+                    gateway = ScriptedGateway([
+                        {"ok": False, "error": "temporary"},
+                        {"ok": True, "id": "p2"},
+                    ])
+                    service = PaymentService(gateway)
+                    assert service.charge("order-2", 20)["ok"] is False
+                    assert service.charge("order-2", 20) == {"ok": True, "id": "p2"}
+                    assert gateway.calls == [20, 20]
+
+
+                def test_conflict_does_not_call_gateway_again():
+                    gateway = ScriptedGateway([{"ok": True, "id": "p3"}])
+                    service = PaymentService(gateway)
+                    service.charge("order-3", 30)
+                    with pytest.raises(IdempotencyConflict):
+                        service.charge("order-3", 31)
+                    assert gateway.calls == [30]
+                '''),
+            "payments/service.py",
+            source('''
+                class PaymentService:
+                    def __init__(self, gateway):
+                        self.gateway = gateway
+                        self._responses = {}
+
+                    def charge(self, key, amount):
+                        if key in self._responses:
+                            return self._responses[key]
+                        response = self.gateway.charge(amount)
+                        self._responses[key] = response
+                        return response
+                '''),
+            source('''
+                class PaymentService:
+                    def __init__(self, gateway):
+                        self.gateway = gateway
+                        self._records = {}
+
+                    def charge(self, key, amount):
+                        if key in self._records:
+                            previous_amount, response = self._records[key]
+                            if previous_amount != amount:
+                                raise IdempotencyConflict(key)
+                            return response
+                        response = self.gateway.charge(amount)
+                        if response.get("ok"):
+                            self._records[key] = (amount, response)
+                        return response
+                '''),
+        ),
+        BenchmarkTask(
+            "profile-event-versioning", "challenge", "event-projection",
+            "Profile events may arrive out of order or be delivered twice. Build the projection "
+            "in contiguous version order starting at 1, ignore identical duplicates, reject "
+            "conflicting duplicates or gaps, and do not mutate event payloads.",
+            {
+                "profiles/__init__.py": "",
+                "profiles/errors.py": source('''
+                    class ProjectionError(ValueError):
+                        pass
+                    '''),
+                "profiles/projector.py": source('''
+                    from profiles.errors import ProjectionError
+
+
+                    def project_profile(events):
+                        state = {"version": 0}
+                        for event in events:
+                            state.update(event["changes"])
+                            state["version"] = event["version"]
+                        return state
+                    '''),
+                "profiles/events.py": source('''
+                    def profile_event(version, **changes):
+                        return {"version": version, "changes": changes}
+                    '''),
+                "profiles/render.py": source('''
+                    def display_name(profile):
+                        return profile.get("display_name", "anonymous")
+                    '''),
+                "profiles/store.py": source('''
+                    def append_event(stream, event):
+                        stream.append(event)
+                        return len(stream)
+                    '''),
+            },
+            source('''
+                from profiles.projector import project_profile
+
+
+                def test_out_of_order_events_use_version_order():
+                    events = [
+                        {"version": 2, "changes": {"plan": "pro"}},
+                        {"version": 1, "changes": {"display_name": "Ada"}},
+                    ]
+                    assert project_profile(events) == {
+                        "version": 2, "display_name": "Ada", "plan": "pro"
+                    }
+                '''),
+            source('''
+                from copy import deepcopy
+                import pytest
+                from profiles.errors import ProjectionError
+                from profiles.projector import project_profile
+
+
+                def test_identical_duplicates_are_idempotent_and_input_is_unchanged():
+                    events = [
+                        {"version": 2, "changes": {"plan": "pro"}},
+                        {"version": 1, "changes": {"display_name": "Ada"}},
+                        {"version": 2, "changes": {"plan": "pro"}},
+                    ]
+                    original = deepcopy(events)
+                    assert project_profile(events) == {
+                        "version": 2, "display_name": "Ada", "plan": "pro"
+                    }
+                    assert events == original
+
+
+                def test_conflicts_and_gaps_are_rejected():
+                    with pytest.raises(ProjectionError):
+                        project_profile([
+                            {"version": 1, "changes": {"plan": "free"}},
+                            {"version": 1, "changes": {"plan": "pro"}},
+                        ])
+                    with pytest.raises(ProjectionError):
+                        project_profile([{"version": 2, "changes": {"plan": "pro"}}])
+
+
+                def test_empty_stream_has_zero_version():
+                    assert project_profile([]) == {"version": 0}
+                '''),
+            "profiles/projector.py",
+            source('''
+                def project_profile(events):
+                    state = {"version": 0}
+                    for event in events:
+                        state.update(event["changes"])
+                        state["version"] = event["version"]
+                    return state
+                '''),
+            source('''
+                def project_profile(events):
+                    by_version = {}
+                    for event in events:
+                        version = event["version"]
+                        changes = dict(event["changes"])
+                        if version in by_version and by_version[version] != changes:
+                            raise ProjectionError(version)
+                        by_version[version] = changes
+                    state = {"version": 0}
+                    for expected, version in enumerate(sorted(by_version), start=1):
+                        if version != expected:
+                            raise ProjectionError(version)
+                        state.update(by_version[version])
+                        state["version"] = version
+                    return state
+                '''),
+        ),
+        BenchmarkTask(
+            "retry-error-classification", "challenge", "retry-policy",
+            "The request helper retries permanent failures and can silently return None after "
+            "exhausting transient failures. Validate max_attempts, retry only transient errors, "
+            "return the first success, and re-raise the final error after exactly the budgeted calls.",
+            {
+                "networking/__init__.py": "",
+                "networking/errors.py": source('''
+                    class RequestError(RuntimeError):
+                        def __init__(self, message, *, transient):
+                            super().__init__(message)
+                            self.transient = transient
+                    '''),
+                "networking/retry.py": source('''
+                    from networking.errors import RequestError
+
+
+                    def request_with_retry(operation, max_attempts):
+                        for attempt in range(max_attempts):
+                            try:
+                                return operation()
+                            except RequestError:
+                                if attempt == max_attempts:
+                                    raise
+                    '''),
+                "networking/client.py": source('''
+                    from networking.retry import request_with_retry
+
+
+                    def fetch_json(transport, path, max_attempts=3):
+                        return request_with_retry(lambda: transport.get(path), max_attempts)
+                    '''),
+                "networking/transport.py": source('''
+                    class ScriptedTransport:
+                        def __init__(self, outcomes):
+                            self.outcomes = list(outcomes)
+                            self.calls = []
+
+                        def get(self, path):
+                            self.calls.append(path)
+                            outcome = self.outcomes.pop(0)
+                            if isinstance(outcome, Exception):
+                                raise outcome
+                            return outcome
+                    '''),
+                "networking/metrics.py": source('''
+                    def attempt_count(transport):
+                        return len(transport.calls)
+                    '''),
+            },
+            source('''
+                import pytest
+                from networking.errors import RequestError
+                from networking.retry import request_with_retry
+
+
+                def test_permanent_error_is_not_retried():
+                    calls = []
+
+                    def operation():
+                        calls.append(1)
+                        raise RequestError("bad request", transient=False)
+
+                    with pytest.raises(RequestError):
+                        request_with_retry(operation, 3)
+                    assert len(calls) == 1
+                '''),
+            source('''
+                import pytest
+                from networking.errors import RequestError
+                from networking.retry import request_with_retry
+
+
+                def test_transient_failure_then_success():
+                    outcomes = [RequestError("busy", transient=True), {"ok": True}]
+                    calls = []
+
+                    def operation():
+                        calls.append(1)
+                        outcome = outcomes.pop(0)
+                        if isinstance(outcome, Exception):
+                            raise outcome
+                        return outcome
+
+                    assert request_with_retry(operation, 3) == {"ok": True}
+                    assert len(calls) == 2
+
+
+                def test_final_transient_error_is_reraised_at_exact_budget():
+                    calls = []
+
+                    def operation():
+                        calls.append(1)
+                        raise RequestError("busy", transient=True)
+
+                    with pytest.raises(RequestError, match="busy"):
+                        request_with_retry(operation, 2)
+                    assert len(calls) == 2
+
+
+                @pytest.mark.parametrize("budget", [0, -1])
+                def test_invalid_attempt_budget(budget):
+                    with pytest.raises(ValueError):
+                        request_with_retry(lambda: {"ok": True}, budget)
+                '''),
+            "networking/retry.py",
+            source('''
+                def request_with_retry(operation, max_attempts):
+                    for attempt in range(max_attempts):
+                        try:
+                            return operation()
+                        except RequestError:
+                            if attempt == max_attempts:
+                                raise
+                '''),
+            source('''
+                def request_with_retry(operation, max_attempts):
+                    if max_attempts < 1:
+                        raise ValueError("max_attempts must be positive")
+                    for attempt in range(max_attempts):
+                        try:
+                            return operation()
+                        except RequestError as error:
+                            if not error.transient or attempt == max_attempts - 1:
+                                raise
+                '''),
+        ),
     )

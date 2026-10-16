@@ -1,0 +1,7 @@
+{
+  "task_id": "profile-event-versioning",
+  "path": "profiles/projector.py",
+  "old": "def project_profile(events):\n    state = {\"version\": 0}\n    for event in events:\n        state.update(event[\"changes\"])\n        state[\"version\"] = event[\"version\"]\n    return state\n",
+  "new": "def project_profile(events):\n    by_version = {}\n    for event in events:\n        version = event[\"version\"]\n        changes = dict(event[\"changes\"])\n        if version in by_version and by_version[version] != changes:\n            raise ProjectionError(version)\n        by_version[version] = changes\n    state = {\"version\": 0}\n    for expected, version in enumerate(sorted(by_version), start=1):\n        if version != expected:\n            raise ProjectionError(version)\n        state.update(by_version[version])\n        state[\"version\"] = version\n    return state\n",
+  "baseline_definition_sha256": "d6e008fd1759ed3ea808e210a4f0eced7efd0c0b4ee54d75ffe82e560494427b"
+}

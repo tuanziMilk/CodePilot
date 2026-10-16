@@ -29,6 +29,7 @@ class ScriptedProvider(LLMProvider):
                 _bash("3"),
                 _edit("4"),
                 _bash("5"),
+                _plan("6"),
                 Message(role=MessageRole.ASSISTANT, content="Ready for verification."),
             ]
         )
@@ -88,10 +89,13 @@ def test_required_plan_is_recorded_before_repository_actions(tmp_path: Path) -> 
 
     assert result.terminal_state is TerminalState.VERIFIED_SUCCESS
     assert result.state.plan_version == 1
+    assert result.state.plan_noop_count == 1
     assert result.state.plan_steps == ["Read source", "Run test", "Edit source", "Verify"]
     events = (trajectory.artifact_dir / "trajectory.jsonl").read_text(encoding="utf-8")
     assert "requires update_plan" in events
     assert "plan_version" in events
+    assert "tool_plan_unchanged" in events
+    assert "Do not repeat the same plan" in events
 
 
 def _plan(call_id: str) -> Message:

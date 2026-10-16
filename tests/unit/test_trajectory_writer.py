@@ -44,6 +44,7 @@ def test_writer_aggregates_observable_latency_and_tool_statuses(tmp_path: Path) 
             run_id="metrics-run",
             step=1,
             event_type="tool_result",
+            tool_name="read_file",
             state_change="tool_error",
             latency_ms=7,
         )
@@ -53,7 +54,18 @@ def test_writer_aggregates_observable_latency_and_tool_statuses(tmp_path: Path) 
             run_id="metrics-run",
             step=2,
             event_type="tool_result",
+            tool_name="update_plan",
             state_change="tool_denied",
+            latency_ms=0,
+        )
+    )
+    writer.write_event(
+        TrajectoryEvent(
+            run_id="metrics-run",
+            step=2,
+            event_type="tool_result",
+            tool_name="update_plan",
+            state_change="tool_plan_unchanged",
             latency_ms=0,
         )
     )
@@ -75,4 +87,8 @@ def test_writer_aggregates_observable_latency_and_tool_statuses(tmp_path: Path) 
     assert metrics["observed_event_latency_ms"] == 26
     assert metrics["tool_error_count"] == 1
     assert metrics["tool_denied_count"] == 1
+    assert metrics["tool_call_count"] == 3
+    assert metrics["read_file_count"] == 1
+    assert metrics["update_plan_count"] == 2
+    assert metrics["plan_noop_count"] == 1
     assert metrics["run_elapsed_ms"] >= 0

@@ -40,7 +40,9 @@ def test_prepare_is_idempotent_and_keeps_answers_outside_repos(tmp_path):
     first = prepare_suite(tmp_path / "benchmarks")
     second = prepare_suite(tmp_path / "benchmarks")
     assert first == second
-    assert first["task_count"] == 10
+    assert first["task_count"] == 15
+    challenge = tmp_path / "benchmarks" / "challenge_suite.json"
+    assert challenge.read_text(encoding="utf-8").count("tasks/") == 5
     for task in task_definitions():
         repo = tmp_path / "benchmarks" / "repos" / task.task_id
         assert not (repo / "acceptance").exists()

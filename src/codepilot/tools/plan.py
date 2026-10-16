@@ -16,7 +16,10 @@ class UpdatePlanInput(BaseModel):
 
 class UpdatePlanTool(Tool):
     name = "update_plan"
-    description = "Record a short public plan before repository actions."
+    description = (
+        "Record a short public plan before repository actions. Call again only when the steps "
+        "materially change; do not repeat an unchanged plan."
+    )
     input_model = UpdatePlanInput
 
     def execute(self, call: ToolCall, context: ToolContext) -> ToolResult:

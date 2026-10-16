@@ -1,0 +1,7 @@
+{
+  "task_id": "retry-error-classification",
+  "path": "networking/retry.py",
+  "old": "def request_with_retry(operation, max_attempts):\n    for attempt in range(max_attempts):\n        try:\n            return operation()\n        except RequestError:\n            if attempt == max_attempts:\n                raise\n",
+  "new": "def request_with_retry(operation, max_attempts):\n    if max_attempts < 1:\n        raise ValueError(\"max_attempts must be positive\")\n    for attempt in range(max_attempts):\n        try:\n            return operation()\n        except RequestError as error:\n            if not error.transient or attempt == max_attempts - 1:\n                raise\n",
+  "baseline_definition_sha256": "97e829477278b64700423126b5e084823ef2477439d858522746880f5df163be"
+}

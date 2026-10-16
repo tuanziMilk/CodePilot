@@ -97,7 +97,8 @@ class TrajectoryWriter:
 
         event_latency_ms = sum(event.latency_ms or 0 for event in self._events)
         elapsed_ms = max(0, round((datetime.now(UTC) - self._start_time).total_seconds() * 1000))
-        return {
+        tool_events = [event for event in self._events if event.event_type == "tool_result"]
+        metrics = {
             "llm_latency_ms": latency("assistant_response"),
             "retrieval_latency_ms": latency("retrieval"),
             "tool_latency_ms": latency("tool_result"),
@@ -112,10 +113,26 @@ class TrajectoryWriter:
                 event.event_type == "tool_result" and event.state_change == "tool_denied"
                 for event in self._events
             ),
+            "tool_call_count": len(tool_events),
+            "plan_noop_count": sum(
+                event.state_change == "tool_plan_unchanged" for event in tool_events
+            ),
             "provider_request_retry_count": sum(
                 event.provider_retry_count or 0 for event in self._events
             ),
         }
+        for tool_name in (
+            "list_files",
+            "read_file",
+            "search_text",
+            "edit_file",
+            "bash",
+            "update_plan",
+        ):
+            metrics[f"{tool_name}_count"] = sum(
+                event.tool_name == tool_name for event in tool_events
+            )
+        return metrics
 
     def write_final_summary(self, summary: dict[str, Any]) -> None:
         safe_path = self.artifact_dir / "final_summary.json"

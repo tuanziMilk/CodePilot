@@ -252,6 +252,7 @@ def main() -> int:
         "retry_count": result.state.repair_retry_count,
         "plan_version": result.state.plan_version,
         "plan_steps": result.state.plan_steps,
+        "plan_noop_count": result.state.plan_noop_count,
         "planning_mode": planning_mode,
         "retrieval_mode": args.retrieval_mode,
         "retrieval_paths": list(retrieval_result.paths) if retrieval_result else [],

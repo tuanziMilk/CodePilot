@@ -1,0 +1,28 @@
+{
+  "task_id": "atomic-batch-reservation",
+  "repository": "../repos/atomic-batch-reservation",
+  "issue_description": "A failed batch reservation can leave earlier stock rows decremented. Treat the whole batch atomically, combine duplicate SKU quantities before checking stock, reject nonpositive quantities, and preserve the existing successful return shape.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "warehouse/__init__.py",
+    "warehouse/catalog.py",
+    "warehouse/checkout.py",
+    "warehouse/errors.py",
+    "warehouse/inventory.py",
+    "warehouse/receipts.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "2e369f5706b70473de3a1a4890ba6c9cb5ccd427",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/atomic_batch_reservation_test.py",
+  "difficulty": "challenge",
+  "task_family": "transactional-state"
+}

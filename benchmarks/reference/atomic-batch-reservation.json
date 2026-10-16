@@ -1,0 +1,7 @@
+{
+  "task_id": "atomic-batch-reservation",
+  "path": "warehouse/inventory.py",
+  "old": "def reserve_batch(stock, lines):\n    reserved = {}\n    for sku, quantity in lines:\n        if quantity <= 0:\n            raise InvalidQuantity(sku)\n        available = stock.get(sku, 0)\n        if available < quantity:\n            raise InsufficientStock(sku)\n        stock[sku] = available - quantity\n        reserved[sku] = reserved.get(sku, 0) + quantity\n    return reserved\n",
+  "new": "def reserve_batch(stock, lines):\n    reserved = {}\n    for sku, quantity in lines:\n        if quantity <= 0:\n            raise InvalidQuantity(sku)\n        reserved[sku] = reserved.get(sku, 0) + quantity\n    for sku, quantity in reserved.items():\n        if stock.get(sku, 0) < quantity:\n            raise InsufficientStock(sku)\n    for sku, quantity in reserved.items():\n        stock[sku] -= quantity\n    return reserved\n",
+  "baseline_definition_sha256": "f71b80d809cbfb9a2727fdb4e6d13403e049fa13f4300c702251f0c818b43092"
+}

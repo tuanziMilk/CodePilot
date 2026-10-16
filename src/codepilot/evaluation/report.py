@@ -35,6 +35,24 @@ def render_markdown(summary: dict[str, Any]) -> str:
         lines.append("| " + " | ".join(_display(value) for value in values) + " |")
     lines += [
         "",
+        "## Operational metrics",
+        "",
+        "| Config | Avg reads | Avg searches | Avg denied | Plan no-ops | Retrieval Hit@1 | Retrieval Hit@3 |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for name, metrics in summary.get("by_config", {}).items():
+        operational = [
+            name,
+            metrics.get("avg_read_file_count"),
+            metrics.get("avg_search_text_count"),
+            metrics.get("avg_tool_denied_count"),
+            metrics.get("plan_noops"),
+            metrics.get("retrieval_hit_at_1_rate"),
+            metrics.get("retrieval_hit_at_3_rate"),
+        ]
+        lines.append("| " + " | ".join(_display(value) for value in operational) + " |")
+    lines += [
+        "",
         "Success requires verified_success, external acceptance and allowed-file audit.",
         "Test pass measures external acceptance separately, including runs that failed to terminate.",
         "Missing measurements remain null/n/a; sample counts are in report.json.",
@@ -66,6 +84,10 @@ def write_reports(summary: dict[str, Any], output: Path) -> None:
         "llm_latency_ms",
         "tool_error_count",
         "tool_denied_count",
+        "read_file_count",
+        "search_text_count",
+        "plan_noop_count",
+        "retrieval_hit_rank",
     ]
     with (output / "report.csv").open("w", newline="", encoding="utf-8-sig") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
@@ -78,6 +100,9 @@ def write_reports(summary: dict[str, Any], output: Path) -> None:
                 "llm_latency_ms",
                 "tool_error_count",
                 "tool_denied_count",
+                "read_file_count",
+                "search_text_count",
+                "plan_noop_count",
             ):
                 row[key] = (record.get("metrics") or {}).get(key)
             writer.writerow(row)

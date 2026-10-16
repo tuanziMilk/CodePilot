@@ -1,0 +1,28 @@
+{
+  "task_id": "retry-error-classification",
+  "repository": "../repos/retry-error-classification",
+  "issue_description": "The request helper retries permanent failures and can silently return None after exhausting transient failures. Validate max_attempts, retry only transient errors, return the first success, and re-raise the final error after exactly the budgeted calls.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "networking/__init__.py",
+    "networking/client.py",
+    "networking/errors.py",
+    "networking/metrics.py",
+    "networking/retry.py",
+    "networking/transport.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "561221d3a1d2d160b666984d49c00d49d4047a35",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/retry_error_classification_test.py",
+  "difficulty": "challenge",
+  "task_family": "retry-policy"
+}

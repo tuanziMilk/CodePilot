@@ -1,0 +1,7 @@
+{
+  "task_id": "dependency-cycle-order",
+  "path": "deploy/planner.py",
+  "old": "def deployment_order(graph, roots):\n    visited = set()\n    order = []\n\n    def visit(node):\n        if node in visited:\n            return\n        visited.add(node)\n        for dependency in graph.get(node, []):\n            visit(dependency)\n        order.append(node)\n\n    for root in roots:\n        visit(root)\n    return order\n",
+  "new": "def deployment_order(graph, roots):\n    complete = set()\n    active = set()\n    order = []\n\n    def visit(node):\n        if node in active:\n            raise DependencyCycleError(node)\n        if node in complete:\n            return\n        active.add(node)\n        for dependency in graph.get(node, []):\n            visit(dependency)\n        active.remove(node)\n        complete.add(node)\n        order.append(node)\n\n    for root in roots:\n        visit(root)\n    return order\n",
+  "baseline_definition_sha256": "994d91eee595a5444f8d4e117f11903a3485892979ac63db852ff9de1713cb79"
+}

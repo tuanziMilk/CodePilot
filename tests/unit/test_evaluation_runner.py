@@ -6,6 +6,7 @@ from codepilot.evaluation.runner import (
     _clone_baseline,
     aggregate_records,
     materialize_task_file,
+    retrieval_hit_rank,
 )
 from codepilot.models.task import TaskSpec, load_task_spec
 
@@ -56,6 +57,9 @@ def test_aggregate_records_groups_success_and_observable_metrics() -> None:
                 "steps": 4,
                 "token_usage": {"total_tokens": 100},
                 "metrics": {"run_elapsed_ms": 1000, "llm_latency_ms": 300, "tool_error_count": 1},
+                "configuration": {"retrieval_mode": "lexical"},
+                "changed_files": ["calculator.py"],
+                "retrieval_hit_rank": 2,
             },
             {
                 "config": "basic",
@@ -65,6 +69,9 @@ def test_aggregate_records_groups_success_and_observable_metrics() -> None:
                 "steps": 6,
                 "token_usage": {"total_tokens": 200},
                 "metrics": {"run_elapsed_ms": 3000, "llm_latency_ms": 500, "tool_denied_count": 2},
+                "configuration": {"retrieval_mode": "lexical"},
+                "changed_files": ["calculator.py"],
+                "retrieval_hit_rank": None,
             },
         ]
     )
@@ -79,6 +86,16 @@ def test_aggregate_records_groups_success_and_observable_metrics() -> None:
     assert basic["avg_llm_latency_ms"] == 400
     assert basic["tool_errors"] == 1
     assert basic["tool_denied"] == 2
+    assert basic["retrieval_hit_at_1_rate"] == 0
+    assert basic["retrieval_hit_at_3_rate"] == 0.5
+
+
+def test_retrieval_hit_rank_uses_first_changed_file_match() -> None:
+    assert retrieval_hit_rank(
+        ["service.py", "model.py"],
+        ["tests.py", "model.py", "service.py"],
+    ) == 2
+    assert retrieval_hit_rank(["service.py"], ["tests.py"]) is None
 
 
 def test_clone_baseline_uses_committed_initial_state_not_source_worktree(tmp_path: Path) -> None:
