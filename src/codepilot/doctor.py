@@ -15,7 +15,11 @@ def main() -> int:
     root = Path(__file__).resolve().parents[2]
     env_path = Path(os.environ.get("CODEPILOT_ENV_FILE", root / ".env"))
     values = dotenv_values(env_path) if env_path.is_file() else {}
-    bash_path = Path(os.environ.get("GIT_BASH_PATH") or values.get("GIT_BASH_PATH") or r"E:\Git\bin\bash.exe")
+    bash_path = Path(
+        os.environ.get("GIT_BASH_PATH")
+        or values.get("GIT_BASH_PATH")
+        or r"C:\Program Files\Git\bin\bash.exe"
+    )
     print(f"Python: {sys.version.split()[0]} ({sys.executable})")
     print(f"CodePilot source: {root / 'src' / 'codepilot'}")
     ok = sys.version_info >= (3, 11)

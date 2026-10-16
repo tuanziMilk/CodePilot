@@ -29,7 +29,7 @@ class Settings(BaseModel):
     llm_max_output_tokens: int = Field(default=4096, ge=1)
     llm_timeout_seconds: float = Field(default=60, gt=0)
     llm_request_retries: int = Field(default=2, ge=0)
-    git_bash_path: Path = Path(r"E:\Git\bin\bash.exe")
+    git_bash_path: Path = Path(r"C:\Program Files\Git\bin\bash.exe")
     agent_max_steps: int = Field(default=12, ge=1)
     agent_max_retries: int = Field(default=1, ge=0)
     tool_policy_version: str = "mvp-v1"
@@ -75,7 +75,9 @@ class Settings(BaseModel):
             llm_max_output_tokens=int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "4096")),
             llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "60")),
             llm_request_retries=int(os.getenv("LLM_REQUEST_RETRIES", "2")),
-            git_bash_path=Path(os.getenv("GIT_BASH_PATH", r"E:\Git\bin\bash.exe")),
+            git_bash_path=Path(
+                os.getenv("GIT_BASH_PATH", r"C:\Program Files\Git\bin\bash.exe")
+            ),
             agent_max_steps=int(os.getenv("AGENT_MAX_STEPS", "12")),
             agent_max_retries=int(os.getenv("AGENT_MAX_RETRIES", "1")),
             tool_policy_version=os.getenv("TOOL_POLICY_VERSION", "mvp-v1"),

@@ -1,16 +1,14 @@
 # 操作手册：从离线验收到真实评测
 
-## 1. 版本目录
+## 1. 进入克隆目录
 
 ```powershell
-Set-Location E:\AIProjects\Vibecoding\codepilot_complete
+Set-Location C:\path\to\codepilot
 python run.py doctor
 ```
 
-`doctor` 会显示实际导入的源码目录，应是 `codepilot_complete\src\codepilot`。旧的
-`codepilot` 是学习进度版本，这里是独立的可运行 MVP；没有拷贝旧 `.env`、私有 Spring 源码或历史
-trajectory。若已经使用旧项目安装的 Python 依赖，直接运行 `run.py` 即可；需要独立环境时按 README
-创建 `.venv`。
+把示例路径替换为你的 Git clone。`doctor` 会显示实际导入的源码目录，应指向当前仓库的
+`src\codepilot`。建议按 README 创建独立 `.venv`，不要依赖其他目录中的 editable install。
 
 ## 2. 无需 Key 的验收
 
@@ -123,4 +121,4 @@ python run.py report "<evaluation_dir>"
 
 先运行 Demo 并读一次 trajectory，再看 architecture.md；了解消息循环与门禁后，直接运行任务集。
 对照 report 和某个失败 case，才能回答“这个 Harness 设计有什么收益和代价”。现阶段不需额外
-通读框架文档。真实数据出来以后，再补简历中的量化成果。
+通读框架文档。已冻结的真实数据和简历口径见 `evaluation_results.md` 与 `resume_and_demo.md`。

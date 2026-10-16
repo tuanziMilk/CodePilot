@@ -116,7 +116,7 @@ Before coupling the harness to any model behavior, Phase 1 includes a small prov
 
 ## Windows Git Bash environment
 
-`GitBashEnvironment` receives an absolute workspace root and the configured executable path (`E:\\Git\\bin\\bash.exe`). It executes a command with the workspace as the process working directory using a non-interactive invocation equivalent to `bash.exe -lc <command>`.
+`GitBashEnvironment` receives an absolute workspace root and the configured Git Bash executable path. It executes a command with the workspace as the process working directory using a non-interactive invocation equivalent to `bash.exe -lc <command>`.
 
 The environment returns captured stdout/stderr subject to byte and line limits, a return code, duration, and timeout status. It does not use string interpolation to construct a shell command; Python process arguments and an explicit working directory are used. The `bash` tool is therefore an environment adapter, while command authorization remains in `PermissionPolicy`.
 

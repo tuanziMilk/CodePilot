@@ -14,7 +14,7 @@ The project prioritizes:
 ## Fixed engineering decisions
 
 - **Core harness:** CodePilot owns its Agent Loop, state, tool protocol, termination policy, and execution control. It must not use OpenHands, mini-SWE-agent, LangGraph Agent Executor, CrewAI, or AutoGen to implement that loop.
-- **Initial platform:** Windows 10, Python 3.11, PowerShell, Git for Windows, and `E:\\Git\\bin\\bash.exe`. Phase 1 does not require WSL or Docker.
+- **Initial platform:** Windows 10, Python 3.11, PowerShell, and a configurable Git for Windows Bash path. Phase 1 does not require WSL or Docker.
 - **Provider abstraction:** The Agent Harness depends only on a provider-neutral interface and internal message/tool schemas. DeepSeek is the initial default provider, not a Harness dependency.
 - **Configuration:** Runtime configuration is supplied through `.env` and typed config loading. Secrets are never committed or written to trajectories, run metadata, logs, or reports.
 - **Default model settings:** Phase 1 uses a DeepSeek OpenAI-compatible endpoint configured by `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_TEMPERATURE`, `LLM_MAX_OUTPUT_TOKENS`, `LLM_TIMEOUT_SECONDS`, and `LLM_REQUEST_RETRIES`.

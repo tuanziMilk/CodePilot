@@ -1,5 +1,8 @@
 # Evaluation protocol
 
+当前冻结实验数字与解释见 [evaluation_results.md](evaluation_results.md)。本文件定义协议；改变任务、
+prompt、工具策略或预算后的运行不能与现有数字直接合并。
+
 一个 case 是某个 TaskSpec、故障 commit、configuration 和 repetition 的一次独立运行。Evaluator 为每个 case 新建 clone；不会恢复、删除或复用旧工作区。旧源码目录里未提交的手工修复不会进入实验。
 
 ## 先检查，再运行

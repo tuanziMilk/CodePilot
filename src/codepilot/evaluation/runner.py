@@ -237,7 +237,7 @@ def _visible_test(task: TaskSpec, workspace: Path, timeout: float) -> dict[str, 
         command = [sys.executable, "-m", "pytest", *tokens[1:]]
     else:
         command = [
-            os.getenv("GIT_BASH_PATH", r"E:\Git\bin\bash.exe"),
+            os.getenv("GIT_BASH_PATH", r"C:\Program Files\Git\bin\bash.exe"),
             "-lc",
             task.verification_command,
         ]

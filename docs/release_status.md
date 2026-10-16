@@ -1,44 +1,46 @@
 # MVP 交付状态（2026-10-16）
 
-此目录是独立于旧 `../codepilot` 的求职版本。目录名中的 complete 指约定 MVP 的功能交付，
-不表示生产级 Agent，也不表示已经得到真实模型的完整性能结论。
+CodePilot 已达到“可写入实习简历、可现场 Demo、可运行 Evaluation、能够解释核心设计”的求职 MVP
+标准。`complete` 表示本轮约定功能交付完成，不表示生产级 Agent。
 
-## 已完成
+## 功能完成情况
 
-- Provider 无关 Harness、结构化 ToolCall、状态循环与模型请求重试。
-- Pydantic 校验、Workspace、明确 forbidden write、受限 Bash 与精确替换一次。
-- 公开 plan 的 off/optional/required、失败复现门禁、验证失败反馈与 bounded repair。
-- 首轮 lexical retrieval 与可解释轨迹，始终记录命令退出码。
-- 基线 clone 隔离、额外验收、tracked/untracked 审计、独立结果与聚合报告。
-- 10 个回归任务、5 个 challenge 任务及四组实验配置；没有复制私有 Spring 项目。
-- 相同公开 Plan 更新成为可观测 no-op；报告新增工具调用与 Retrieval 命中指标。
-- 统一 run.py、离线 Demo、操作文档、架构、失败分析及简历讲解素材。
+- Provider-neutral Harness、结构化 ToolCall、消息状态与终止控制。
+- Pydantic 校验、Workspace 边界、allowed/forbidden write、受限 Bash 与精确替换一次。
+- 公开 Planning、失败复现门禁、external verification、failure feedback 与 bounded repair。
+- 首轮 lexical retrieval、公开 action summary、JSONL trajectory 与 pretty viewer。
+- 独立 baseline clone、额外 acceptance、tracked/untracked diff audit 与聚合报告。
+- 15 个合成任务、四个配置、离线 scripted demo 和统一 `run.py` 入口。
 
-## 本次工程验收
+## 工程验收
 
-| 检查 | 实际结果 |
+| 检查 | 结果 |
 | --- | --- |
-| 源码与测试 Ruff | All checks passed |
-| pytest 单元/协议/集成测试 | 103 passed |
-| 15-task 候选基线与参考修复验证 | 15/15 validated |
-| 正式 challenge suite 验证 | 5/5 validated |
-| 每个任务的四个测试阶段 | baseline visible/acceptance 失败；reference visible/acceptance 通过 |
-| 参考修复验证后的源仓库 | 全部保持 clean |
-| 本地 scripted Demo | verified_success，7 steps，0 tool error/denied |
-| Challenge Evaluation dry-run | 5 tasks × 4 configs × 1 repeat = 20 cases |
-| 已有真实 Provider 实验 | 旧 10 题 × 4 configs = 40/40 success；新增 challenge 尚待实测 |
+| Ruff | All checks passed |
+| pytest | 103 passed |
+| Benchmark definition/reference validation | 15/15 validated |
+| Challenge baseline/reference validation | 5/5 validated |
+| Scripted offline demo | verified_success |
+| 5-task challenge live evaluation | 20/20 cases success |
+| 2-task × 3-repeat robustness evaluation | 24/24 cases success |
+| Permission / diff audit | 所有 live cases 通过 |
 
-证据保存在 `artifacts/benchmark_validation/` 与 `artifacts/demos/`。这些是本机验收产物，
-未跟踪进 Git；任何新机器都可以运行 prepare、validate、demo 重建证据。基线生成固定内容、
-作者身份、时间与 SHA-1 object format，保留每题完整 commit hash。
+评测使用的源码 commit 为 `e6a2f5128222753ca2d805c602be27004a1cb844`。后续公开化整理只更新
+文档和 Git Bash 默认路径，不改变 Agent Harness 或实验逻辑。详细数字见
+[evaluation_results.md](evaluation_results.md)。
 
-本机账户和 sandbox 账户不同。为便于用户直接运行，最终 `benchmarks/repos` 已在本机账户下
-重新生成相同 commit；sandbox 的生成副本留存在 `artifacts/sandbox_baselines`，未修改全局
-Git safe.directory 或旧项目。若从 Git 克隆本项目，运行 prepare 即可创建属于当前账户的基线。
+## 已知限制
 
-## 下一轮真实模型实验
+- 合成任务仍有 100% 成功率天花板，样本量不足以证明一般化提升。
+- Workspace boundary 是逻辑隔离，不是 OS sandbox。
+- Retrieval 只有 lexical run-start snapshot，没有 embedding、AST 或增量更新。
+- 编辑器只支持精确替换一次；工具能力有意保持小而可审查。
+- 没有 Multi-Agent、MCP、Memory、Docker、IDE/Web UI。
 
-旧 10 题单次实验出现 100% 天花板效应，同时发现重复 Plan 和 permission denial 的效率问题。
-当前版本已修复 Plan 计数并加入 5 道 challenge 题。下一步运行 `benchmarks/challenge_suite.json`
-的 20 cases；正式结果需保留失败、成本与样本数，不得把本地参考答案验证或 scripted Demo
-计入模型 Evaluation。
+## 发布前人工检查
+
+- 确认 `.env`、`artifacts/`、`.idea/` 与 `benchmarks/repos/` 未被 Git 跟踪。
+- 在 GitHub 页面检查 Mermaid、表格和相对链接渲染。
+- 根据个人开源意愿选择并添加许可证；项目当前不替用户预设许可证。
+- 创建公开仓库后，将 README 的 `<your-repository-url>` 换成真实 clone URL。
+- 不上传包含本机绝对路径或 API Key 的历史 artifacts。
