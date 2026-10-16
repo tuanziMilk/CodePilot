@@ -89,7 +89,7 @@ challenge suite 中实现 Hit@3=100%，但小仓库的读取次数只略有变�
 要求：Python 3.11+、Git、Windows Git Bash。
 
 ```powershell
-git clone <your-repository-url>
+git clone https://github.com/tuanziMilk/CodePilot
 Set-Location codepilot
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
