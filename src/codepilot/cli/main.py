@@ -253,6 +253,7 @@ def main() -> int:
         "plan_version": result.state.plan_version,
         "plan_steps": result.state.plan_steps,
         "plan_noop_count": result.state.plan_noop_count,
+        "verified_at_step_limit": result.state.verified_at_step_limit,
         "planning_mode": planning_mode,
         "retrieval_mode": args.retrieval_mode,
         "retrieval_paths": list(retrieval_result.paths) if retrieval_result else [],

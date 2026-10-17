@@ -1,0 +1,34 @@
+{
+  "task_id": "schema-alias-migration",
+  "repository": "../repos/schema-alias-migration",
+  "issue_description": "Profile records are migrating from the legacy `name` field to `display_name`. Reads must accept either spelling, prefer `display_name` when both are present, and continue enforcing the existing required-value checks. Writes must emit only the canonical `display_name` field so a read/write round trip does not recreate legacy data. Preserve optional active=false values and do not mutate input payloads.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "profiles_v2/__init__.py",
+    "profiles_v2/api.py",
+    "profiles_v2/audit.py",
+    "profiles_v2/codec_in.py",
+    "profiles_v2/codec_out.py",
+    "profiles_v2/errors.py",
+    "profiles_v2/fields.py",
+    "profiles_v2/legacy.py",
+    "profiles_v2/model.py",
+    "profiles_v2/service.py",
+    "profiles_v2/storage.py",
+    "profiles_v2/validation.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "b16cbde68d0b740d921944560d703c281c75ceb5",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/schema_alias_migration_test.py",
+  "difficulty": "hard-v2",
+  "task_family": "multi-file-schema-compatibility"
+}

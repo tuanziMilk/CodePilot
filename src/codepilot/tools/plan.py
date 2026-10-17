@@ -17,8 +17,10 @@ class UpdatePlanInput(BaseModel):
 class UpdatePlanTool(Tool):
     name = "update_plan"
     description = (
-        "Record a short public plan before repository actions. Call again only when the steps "
-        "materially change; do not repeat an unchanged plan."
+        "Record a short public plan before repository actions. Arguments must look like "
+        '{"steps":["Inspect files","Reproduce failure","Apply fix","Verify"]}; each item is '
+        "a string, not an object. Call again only when the steps materially change; do not "
+        "repeat an unchanged plan."
     )
     input_model = UpdatePlanInput
 

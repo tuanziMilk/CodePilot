@@ -1,106 +1,157 @@
-# CodePilot — 可评估、可审计的 Coding Agent
+# CodePilot — Evaluation-first Coding Agent
 
-CodePilot 是一个从零实现的 repository-level Coding Agent 求职 MVP。它不依赖现成 Agent
-框架完成主循环，而是自行实现 Provider abstraction、结构化 Tool Calling、状态循环、权限校验、
-测试失败反馈、bounded repair、Repository Retrieval、Trajectory 和可复现 Evaluation。
+CodePilot 是一个从零实现的 repository-level Coding Agent 求职项目。它不依赖现成 Agent 框架
+完成主循环，而是自行实现 Provider abstraction、结构化 Tool Calling、受控工具执行、失败反馈、
+Repository Retrieval、Trajectory 和可复现 Evaluation。
 
-> A compact, evaluation-first coding-agent harness built with Python, Pydantic, Git and an
+> A compact, auditable coding-agent harness built with Python, Pydantic, Git and an
 > OpenAI-compatible DeepSeek provider.
 
-项目重点不是堆叠 Multi-Agent、Memory 或 UI，而是回答三个可以被实验验证的问题：
+这个项目不试图复刻 Codex 或 Claude Code 的完整产品体验。它聚焦一个更容易验证的问题：
 
-1. 模型提出的动作如何经过校验后安全地作用于仓库？
-2. 为什么模型声称完成不能作为成功条件，失败反馈怎样触发 repair？
-3. Planning / reproduction control 与 lexical retrieval 是否改变成功率和执行成本？
+> 当 LLM 被允许修改代码时，Harness 如何约束它的动作、验证补丁，并用实验判断某项设计是否真的
+> 改变成功率或执行成本？
 
-## 已实现能力
+## 项目亮点
 
-- Provider-neutral Agent Harness：内部 `Message` / `ToolCall` / `ToolResult` 不依赖 DeepSeek。
-- 五类受控工具：列目录、读文件、搜索、精确替换一次、受限 Git Bash。
-- Pydantic 参数校验、Workspace 路径边界、允许修改文件与命令策略。
-- 公开短计划、修改前失败复现门禁、max steps、external verification 与一次 bounded repair。
-- run 开始时的 lexical repository retrieval，输出 Top-K 文件及可解释得分。
-- JSONL trajectory：记录公开动作摘要、工具参数/结果、退出码、Token、延迟与状态变化；不保存私有
-  Chain-of-Thought。
-- Evaluation Runner：从固定 Git 故障 commit 创建独立 clone，运行可见测试、额外验收和 diff audit，
-  生成 JSON / CSV / Markdown 报告。
-- 15 个自包含 Python Coding Tasks，其中 5 个 challenge tasks 涉及原子性、图环、幂等、事件版本和
-  重试分类。
+| 能力 | CodePilot 的实现 |
+| --- | --- |
+| Agent Harness | 自行维护 Messages、RunState、ToolCall、ToolResult 和 termination |
+| Model Provider | OpenAI-compatible 抽象；Phase 1–4 使用 DeepSeek 实测 |
+| Controlled Tools | `list_files`、`read_file`、`search_text`、`edit_file`、受限 Git Bash |
+| Safety Boundary | Pydantic 参数校验、Workspace 路径边界、允许修改文件和命令策略 |
+| Reliability | 失败复现门禁、external verifier、failure feedback、bounded repair、max steps |
+| Context | run 开始时执行可解释的 lexical retrieval，并记录 Top-K 和 Hit@K |
+| Observability | JSONL trajectory 记录公开动作摘要、工具结果、Token、延迟和状态变化 |
+| Evaluation | 从固定 Git commit 创建独立 clone，执行 acceptance test 和 diff audit |
 
-## 架构
+Trajectory 只保存可公开的 action summary，例如“读取相关实现与测试”或“运行声明的验证命令”，
+不要求、解析或持久化模型的隐藏 Chain-of-Thought。
+
+## Agent 如何运行
 
 ```mermaid
 flowchart LR
-  U[TaskSpec / User task] --> H[Agent Harness]
-  R[Lexical retrieval] --> H
+  U[TaskSpec / User task] --> R[Optional lexical retrieval]
+  R --> H[Agent Harness]
   H --> P[Provider interface]
   P --> L[OpenAI-compatible LLM]
-  L --> P
-  P --> C[Internal ToolCall]
-  C --> D[Pydantic + Dispatcher]
+  L --> C[Internal ToolCall]
+  C --> D[Pydantic validation]
   D --> B[Workspace + Permission policy]
   B --> T[File tools / Git Bash]
   T --> O[ToolResult observation]
   O --> H
   H --> V[External verifier]
-  V -->|failed| F[Failure feedback + bounded repair]
+  V -->|failed and retry remains| F[Failure feedback]
   F --> H
-  V -->|passed| A[Diff audit + acceptance]
+  V -->|passed| A[Acceptance + diff audit]
   H --> J[Trajectory JSONL]
 ```
 
-更完整的职责和数据流见 [docs/architecture.md](docs/architecture.md)。
+模型不能直接操作本机。每次工具请求都要先变成 CodePilot 内部 `ToolCall`，通过输入模型、工作空间
+边界和权限策略后，才会由 Tool Dispatcher 执行。模型声称“完成”也不等于任务成功，最终状态由
+独立 verifier 决定。
 
-## 实验结果
+更完整的数据流和模块职责见 [架构文档](docs/architecture.md)。
 
-测试环境固定为：DeepSeek OpenAI-compatible Provider、temperature 0、`max_steps=12`、
-`agent_max_retries=1`。成功必须同时满足 `verified_success`、额外验收通过和允许文件审计通过。
+## Evaluation
 
-### 5-task challenge suite，四配置各运行一次
+### 实验设计
 
-| Configuration | Success | Avg steps | Avg tokens | Avg latency |
-| --- | ---: | ---: | ---: | ---: |
-| basic | 5/5 | 7.8 | 19,593.8 | 40.1s |
-| reliable | 5/5 | 7.8 | 21,336.6 | 45.9s |
-| retrieval | 5/5 | **6.2** | 18,151.6 | 34.5s |
-| full | 5/5 | 7.2 | **18,083.0** | **32.3s** |
+四种配置构成一个小型 2×2 对照：
 
-### 两个代表任务，四配置各重复三次
+| Configuration | Planning + reproduction gate | Lexical retrieval |
+| --- | --- | --- |
+| `basic` | off | off |
+| `reliable` | on | off |
+| `retrieval` | off | on |
+| `full` | on | on |
 
-| Configuration | Success | Avg steps | Avg tokens | Avg latency |
-| --- | ---: | ---: | ---: | ---: |
-| basic | 6/6 | 8.17 | 26,470.3 | 51.0s |
-| reliable | 6/6 | 7.50 | 17,608.5 | 37.3s |
-| retrieval | 6/6 | **6.67** | **17,115.0** | **33.8s** |
-| full | 6/6 | 7.00 | 18,298.8 | 34.1s |
+`reliable` 同时启用了公开 Planning 和修改前失败复现，因此 basic → reliable 的差异不能单独归因于
+Planning。一次 case 只有同时满足以下条件才算成功：
 
-两轮都出现 100% 成功率，说明任务仍有天花板，不能据此宣称达到真实工业 Coding Agent 水平。
-更有价值的观察是：external verifier 多次阻止模型在未修复时提前结束；一次 API 请求由 Provider
-retry 恢复，另一次任务失败由 Agent repair 恢复，验证了两类 retry 的职责分离。Retrieval 在
-challenge suite 中实现 Hit@3=100%，但小仓库的读取次数只略有变化，因此目前只报告相关性，不宣称
-检索带来因果上的显著提升。
+```text
+Harness terminal_state == verified_success
++ external acceptance passed
++ 只修改 allowed files
++ tests / forbidden files 未被篡改
++ Git HEAD 未改变
+```
 
-完整协议、逐任务结果和诚实边界见 [docs/evaluation_results.md](docs/evaluation_results.md) 与
-[docs/failure_analysis.md](docs/failure_analysis.md)。评测对应源码 commit 为 `e6a2f51`；其后的改动
-仅整理公开文档与 Git Bash 默认路径，不改变 Agent Harness 或实验逻辑。
+### Hard Suite V2
+
+Hard Suite V2 包含 6 个多文件契约任务。每题有 12–13 个实现文件、2–3 个参考修改点，并加入间接
+调用、相似命名干扰或跨模块不变量。实验条件为 DeepSeek OpenAI-compatible Provider、temperature
+0、`max_steps=12`、四配置各运行一次，共 24 cases。
+
+| Config | Strict success | Avg steps | Avg tokens | Avg latency | Avg reads | Denied total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| basic | 6/6 | 10.83 | 41,087.7 | 56.9s | 15.33 | 14 |
+| reliable | 6/6 | 11.50 | 37,609.2 | 49.0s | 12.83 | 7 |
+| retrieval | 6/6 | **9.17** | 37,793.2 | 51.1s | 13.83 | 14 |
+| full | 6/6 | 10.17 | **36,701.8** | **47.1s** | **12.33** | **5** |
+
+本轮可以支持的观察：
+
+- 24/24 case 均通过 external acceptance、allowed-file audit 和 HEAD audit。
+- Full 相对 Basic 平均 Token 少 10.7%、latency 少 17.3%、文件读取少 19.6%。
+- Retrieval 的 changed-file Hit@3 为 100%，但 reference-patch file recall@K 为 61.1%；它能找到
+  相关区域，却不能稳定覆盖所有跨文件修复点。
+- 5 次运行在耗尽模型 step 时补丁已经正确。最终 verifier 在不增加 LLM 行动的情况下把它们正确
+  收敛为 `verified_success`，避免将正确工作区误判为 `max_steps`。
+- Full 并非每题都更快：`schema-alias-migration/full` 的 Token 和 latency 都高于 Basic，说明
+  Planning + Retrieval 也可能因具体轨迹产生额外成本。
+
+这些是 6 个合成任务、每配置单次运行的描述性结果，不是统计显著结论，也不等同 SWE-bench 或真实
+工业仓库能力。完整数据、异常案例和限制见
+[Hard Suite V2 结果](docs/hard_suite_v2_results.md)；旧协议如何暴露 benchmark 与 termination
+问题见 [首轮探索记录](docs/hard_suite_v2_exploratory_results.md)。
+
+## Benchmark 覆盖
+
+仓库包含 21 个自包含任务：15 个回归任务和 6 个 hard-v2 任务。hard-v2 覆盖：
+
+| Task | 主要不变量 |
+| --- | --- |
+| Schema alias migration | 兼容旧字段输入，同时只输出 canonical schema |
+| Role cache invalidation | 权限变更、事件 payload 与缓存失效保持一致 |
+| Filtered cursor pagination | 过滤、排序、exclusive cursor 与 next cursor 语义 |
+| Webhook dedup transaction | 失败不留记录，成功请求幂等且副作用只发生一次 |
+| Plugin resolution shadowing | namespace、版本优先级与 fallback/error 语义 |
+| Ledger transfer atomicity | 借贷原子性、请求幂等和 journal 不重复增长 |
+
+TaskSpec 只向 Agent 提供公开 issue、工作空间、允许修改范围和验证命令；外部 acceptance 与参考补丁
+保留在 evaluator 一侧，不会复制进 Agent workspace。
 
 ## 快速开始
 
-要求：Python 3.11+、Git、Windows Git Bash。
+### 1. 安装
+
+要求：Python 3.11+、Git，以及 Windows 上的 Git Bash。
 
 ```powershell
-git clone https://github.com/tuanziMilk/CodePilot
-Set-Location codepilot
+git clone https://github.com/tuanziMilk/CodePilot.git
+Set-Location CodePilot
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
-在 `.env` 中填写自己的 `LLM_MODEL`、`LLM_BASE_URL`、`LLM_API_KEY`，并按本机安装位置调整
-`GIT_BASH_PATH`。API Key 已被 `.gitignore` 排除，不能写进 TaskSpec、trajectory 或 Git。
+在 `.env` 中填写自己的模型配置：
 
-以下命令不调用模型：
+```dotenv
+LLM_PROVIDER=deepseek
+LLM_MODEL=<your-model>
+LLM_BASE_URL=https://api.deepseek.com
+LLM_API_KEY=<your-api-key>
+LLM_TEMPERATURE=0
+```
+
+API Key 已被 `.gitignore` 排除，不应写入 TaskSpec、trajectory、Evaluation 报告或 Git。
+
+### 2. 本地检查（不调用模型）
 
 ```powershell
 python run.py doctor
@@ -111,12 +162,13 @@ python run.py test -q -p no:cacheprovider
 python -m ruff check src tests
 ```
 
-`prepare` 生成 15 个独立 Git 故障仓库；`validate` 验证每题的 buggy baseline 确实失败、参考修复及
-额外验收确实通过；`demo` 使用 scripted Provider 演示真实工具循环，不能当作模型成绩。
+- `prepare`：生成 21 个带固定故障 commit 的本地 benchmark 仓库。
+- `validate`：确认 buggy baseline 会失败、参考修复和外部 acceptance 会通过。
+- `demo`：用 scripted Provider 演示完整 Agent Loop，不产生 API 费用，也不属于模型成绩。
 
-## 运行真实 Agent 与 Evaluation
+### 3. 运行真实 Agent
 
-先用一题检查配置：
+先用一个小任务检查 API 与环境：
 
 ```powershell
 python run.py eval `
@@ -125,69 +177,89 @@ python run.py eval `
   --config full
 ```
 
-运行 challenge suite 的四配置比较：
+也可以对自己的可信仓库发起受限任务：
 
 ```powershell
-python run.py eval --suite benchmarks\challenge_suite.json
+python run.py run `
+  --workspace E:\path\to\your-repo `
+  --task "修复指定行为，并保持现有测试通过" `
+  --verify-command "python -m pytest -q" `
+  --allowed-edit-path src\target.py `
+  --planning-mode required `
+  --reproduction-policy on `
+  --retrieval-mode lexical
 ```
 
-每个 case 都从 `initial_commit` 创建新 clone，不会复用已经修好的工作区。命令返回
-`evaluation_dir` 后，可查看聚合报告和单次轨迹：
+运行测试或构建命令会执行目标仓库代码；只应把可信仓库交给当前 MVP。
+
+### 4. 运行四配置 Evaluation
+
+```powershell
+python run.py eval --suite benchmarks\hard_suite_v2.json --dry-run
+python run.py eval --suite benchmarks\hard_suite_v2.json
+```
+
+每个 case 都从 `initial_commit` 创建独立 clone，不会继承上一个配置已经修好的文件。命令结束后会
+输出 `evaluation_dir`。
+
+### 5. 查看报告和轨迹
 
 ```powershell
 python run.py report "<evaluation_dir>"
 python run.py view "<artifact_dir>\trajectory.jsonl"
 ```
 
-四个实验配置：
+单次 trajectory 可以沿着下面的链路阅读：
 
-| Configuration | Public plan + reproduction gate | Lexical retrieval |
-| --- | --- | --- |
-| basic | off | off |
-| reliable | on | off |
-| retrieval | off | on |
-| full | on | on |
-
-这里的 reliable 同时启用 planning 和 reproduction，因而不能把 basic→reliable 的差异单独归因于
-Planning。详细命令见 [docs/quickstart_zh.md](docs/quickstart_zh.md)。
+```text
+User task → LLM response → validated ToolCall → tool execution
+→ ToolResult observation → next LLM step → external verification
+→ verified_success / failure feedback / max_steps
+```
 
 ## 项目结构
 
 ```text
 src/codepilot/
-  agent/           Agent loop、状态与 termination
-  llm/             Provider interface 与 DeepSeek adapter
-  tools/           Pydantic 输入模型和五类工具
-  environment/     Workspace 与 Git Bash process adapter
+  agent/           Agent loop、RunState、termination 与 failure feedback
+  llm/             Provider interface、wire mapping 与 DeepSeek adapter
+  tools/           Pydantic 输入模型和受控工具
+  environment/     Workspace 边界与 Git Bash process adapter
   permissions/     命令和修改范围策略
   retrieval/       Lexical repository retrieval
   verification/    独立测试验证
   trajectory/      JSONL 日志与 pretty viewer
-  evaluation/      Clone、验收、审计与报告
-benchmarks/         TaskSpec、额外验收、参考修复与 suite
+  evaluation/      Clone、acceptance、diff audit 与聚合报告
+  benchmarks/      Benchmark 生成和离线校验
+benchmarks/         TaskSpec、suite、acceptance 与 reference fixes
 tests/              unit / contract / integration tests
-docs/               架构、实验、失败分析和学习笔记
+docs/               架构、实验结果、操作手册和学习记录
+run.py              统一的本地入口
 ```
 
-## 安全与局限
+## 设计边界
 
-- Workspace 和 PermissionPolicy 是逻辑边界，不是 Docker 或操作系统级 sandbox。
-- 运行 pytest 或项目构建会执行仓库代码，因此仅应运行可信 benchmark。
-- `edit_file` 维持“旧文本恰好出现一次”的 MVP 策略，不支持 unified diff。
-- Lexical retrieval 每个 run 只在开始时执行一次，不做 embedding、AST 或增量索引。
-- Benchmark 是自建合成 Python 任务，不等同 SWE-bench，也不代表生产级仓库修复能力。
-- 暂不包含 Multi-Agent、MCP、Memory、Docker、IDE Plugin 或 Web UI。
+- Workspace 与 PermissionPolicy 是应用层逻辑边界，不是 Docker 或操作系统级 sandbox。
+- `edit_file` 使用“旧文本必须恰好出现一次”的精确替换策略，不支持 unified diff。
+- Lexical retrieval 只在每个 run 开始时生成一次快照，没有 embedding、AST、Call Graph 或增量索引。
+- 当前 benchmark 为自建合成 Python 任务，规模不足以证明一般化性能提升。
+- 暂不包含 Multi-Agent、MCP、长期 Memory、IDE Plugin、Web UI 或 RL。
 
-## 延伸文档
+这些限制是 MVP 的明确取舍：优先让 Agent Loop、权限、验证、轨迹和 Evaluation 保持小而可审查。
 
-- [操作手册](docs/quickstart_zh.md)
+## 文档索引
+
+- [快速操作手册](docs/quickstart_zh.md)
 - [架构与核心设计](docs/architecture.md)
 - [Evaluation 协议](docs/evaluation_protocol.md)
-- [正式实验结果](docs/evaluation_results.md)
+- [完整实验结果](docs/evaluation_results.md)
+- [Hard Suite V2 设计](docs/hard_suite_v2.md)
+- [Hard Suite V2 结果](docs/hard_suite_v2_results.md)
 - [真实 Trajectory 案例](docs/trajectory_example.md)
-- [Benchmark 目录](docs/benchmark_catalog.md)
 - [Failure Analysis](docs/failure_analysis.md)
-- [Demo 与简历表述](docs/resume_and_demo.md)
+- [Benchmark 目录](docs/benchmark_catalog.md)
+- [项目介绍与 Demo](docs/resume_and_demo.md)
 - [MVP 交付状态](docs/release_status.md)
 
-Phase 1–4 学习文档保留为开发过程记录；其中个别历史路径或早期指标不作为当前版本运行依据。
+Phase 1–4 学习文档保留了项目从最小 Agent Harness 到 Retrieval/Evaluation 的开发过程；其中个别
+历史命令和早期指标不作为当前版本运行依据。

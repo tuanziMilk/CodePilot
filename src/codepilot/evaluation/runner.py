@@ -57,6 +57,7 @@ class PreparedTask:
     task: TaskSpec
     source_repo: Path
     acceptance_path: Path
+    reference_fix_files: tuple[str, ...] = ()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -136,8 +137,37 @@ def prepare_tasks(paths: list[Path], suite: Path | None = None) -> list[Prepared
         ):
             raise ValueError("acceptance_test_file must be an existing external Python test file.")
         PermissionPolicy("mvp-v1").authorize_command(task.verification_command)
-        prepared.append(PreparedTask(path, task, source, acceptance))
+        prepared.append(
+            PreparedTask(
+                path,
+                task,
+                source,
+                acceptance,
+                _reference_fix_files(path, task.task_id),
+            )
+        )
     return prepared
+
+
+def _reference_fix_files(task_path: Path, task_id: str) -> tuple[str, ...]:
+    """Read evaluator-only reference paths when using the generated benchmark layout."""
+
+    reference_path = task_path.parent.parent / "reference" / f"{task_id}.json"
+    if not reference_path.is_file():
+        return ()
+    payload = json.loads(reference_path.read_text(encoding="utf-8"))
+    edits = payload.get("edits")
+    paths = (
+        [edit.get("path") for edit in edits if isinstance(edit, dict)]
+        if isinstance(edits, list)
+        else [payload.get("path")]
+    )
+    if not paths or not all(isinstance(path, str) and path for path in paths):
+        raise ValueError(f"Invalid reference fix paths for task {task_id}.")
+    normalized = tuple(dict.fromkeys(path.replace("\\", "/") for path in paths))
+    if any(Path(path).is_absolute() or ".." in Path(path).parts for path in normalized):
+        raise ValueError(f"Unsafe reference fix path for task {task_id}.")
+    return normalized
 
 
 def materialize_task_file(task: TaskSpec, destination: Path) -> Path:
@@ -326,6 +356,16 @@ def retrieval_hit_rank(changed_files: list[str], retrieval_paths: list[str]) -> 
     return min(ranks) if ranks else None
 
 
+def retrieval_file_recall(reference_files: list[str], retrieval_paths: list[str]) -> float | None:
+    """Return reference-file coverage in the retrieval top-k list."""
+
+    expected = {path.replace("\\", "/").casefold() for path in reference_files}
+    if not expected:
+        return None
+    retrieved = {path.replace("\\", "/").casefold() for path in retrieval_paths}
+    return len(expected & retrieved) / len(expected)
+
+
 def run_case(
     *,
     project_root: Path,
@@ -335,6 +375,7 @@ def run_case(
     config: EvaluationConfig,
     case_dir: Path,
     acceptance_path: Path | None = None,
+    reference_fix_files: tuple[str, ...] = (),
     case_timeout: float = 600,
     test_timeout: float = 120,
 ) -> dict[str, Any]:
@@ -353,6 +394,7 @@ def run_case(
         "case_dir": str(case_dir),
         "source_repository": str(source_repo),
         "initial_commit": task.initial_commit,
+        "reference_fix_files": list(reference_fix_files),
         "evaluation_outcome": "infra_error",
         "terminal_state": None,
         "acceptance_passed": None,
@@ -445,6 +487,7 @@ def run_case(
                     "retry_count",
                     "plan_version",
                     "plan_noop_count",
+                    "verified_at_step_limit",
                     "token_usage",
                     "metrics",
                     "retrieval_paths",
@@ -453,6 +496,14 @@ def run_case(
                     record[key] = summary.get(key)
                 record["retrieval_hit_rank"] = retrieval_hit_rank(
                     list(record.get("changed_files") or []),
+                    list(record.get("retrieval_paths") or []),
+                )
+                record["retrieval_reference_hit_rank"] = retrieval_hit_rank(
+                    list(reference_fix_files),
+                    list(record.get("retrieval_paths") or []),
+                )
+                record["retrieval_reference_file_recall"] = retrieval_file_recall(
+                    list(reference_fix_files),
                     list(record.get("retrieval_paths") or []),
                 )
                 safe_fields = {
@@ -532,6 +583,9 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             "test_pass_rate": accepted / len(group),
             "verified_successes": sum(r.get("terminal_state") == "verified_success" for r in group),
             "infra_errors": sum(r.get("evaluation_outcome") == "infra_error" for r in group),
+            "step_limit_successes": sum(
+                record.get("verified_at_step_limit") is True for record in group
+            ),
         }
         for output, path in {
             "steps": ("steps",),
@@ -594,6 +648,39 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             if retrieval_records
             else None
         )
+        reference_records = [
+            record for record in retrieval_records if record.get("reference_fix_files")
+        ]
+        reference_ranks = [
+            record.get("retrieval_reference_hit_rank")
+            if "retrieval_reference_hit_rank" in record
+            else retrieval_hit_rank(
+                list(record.get("reference_fix_files") or []),
+                list(record.get("retrieval_paths") or []),
+            )
+            for record in reference_records
+        ]
+        reference_recalls = [
+            record.get("retrieval_reference_file_recall")
+            if "retrieval_reference_file_recall" in record
+            else retrieval_file_recall(
+                list(record.get("reference_fix_files") or []),
+                list(record.get("retrieval_paths") or []),
+            )
+            for record in reference_records
+        ]
+        values["retrieval_reference_samples"] = len(reference_records)
+        values["retrieval_reference_hit_at_1_rate"] = (
+            sum(rank == 1 for rank in reference_ranks) / len(reference_records)
+            if reference_records
+            else None
+        )
+        values["avg_retrieval_reference_file_recall"] = (
+            sum(recall for recall in reference_recalls if recall is not None)
+            / len([recall for recall in reference_recalls if recall is not None])
+            if any(recall is not None for recall in reference_recalls)
+            else None
+        )
         by_config[name] = values
     return {"run_count": len(records), "by_config": by_config, "records": records}
 
@@ -638,6 +725,7 @@ def main(argv: list[str] | None = None) -> int:
                         task=item.task,
                         source_repo=item.source_repo,
                         acceptance_path=item.acceptance_path,
+                        reference_fix_files=item.reference_fix_files,
                         config=DEFAULT_CONFIGS[name],
                         case_dir=output / item.task.task_id / name / f"run-{index:02d}",
                         case_timeout=args.case_timeout,

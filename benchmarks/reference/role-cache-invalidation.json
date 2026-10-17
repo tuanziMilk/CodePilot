@@ -1,0 +1,19 @@
+{
+  "task_id": "role-cache-invalidation",
+  "path": "authz/roles.py",
+  "old": "class RoleService:\n    def __init__(self, repository, bus):\n        self.repository = repository\n        self.bus = bus\n\n    def set_roles(self, user_id, roles):\n        normalized = set(roles)\n        self.repository.save(user_id, normalized)\n        return normalized\n",
+  "new": "class RoleService:\n    def __init__(self, repository, bus):\n        self.repository = repository\n        self.bus = bus\n\n    def set_roles(self, user_id, roles):\n        normalized = set(roles)\n        self.repository.save(user_id, normalized)\n        self.bus.publish(\"roles.changed\", {\n            \"user_id\": user_id,\n            \"roles\": sorted(normalized),\n        })\n        return normalized\n",
+  "baseline_definition_sha256": "bc2b1368a725df156c370f6b26fc17361cb4e1a959e0e5d8695dee6d256ba302",
+  "edits": [
+    {
+      "path": "authz/roles.py",
+      "old": "class RoleService:\n    def __init__(self, repository, bus):\n        self.repository = repository\n        self.bus = bus\n\n    def set_roles(self, user_id, roles):\n        normalized = set(roles)\n        self.repository.save(user_id, normalized)\n        return normalized\n",
+      "new": "class RoleService:\n    def __init__(self, repository, bus):\n        self.repository = repository\n        self.bus = bus\n\n    def set_roles(self, user_id, roles):\n        normalized = set(roles)\n        self.repository.save(user_id, normalized)\n        self.bus.publish(\"roles.changed\", {\n            \"user_id\": user_id,\n            \"roles\": sorted(normalized),\n        })\n        return normalized\n"
+    },
+    {
+      "path": "authz/listeners.py",
+      "old": "lambda event: cache.invalidate(event[\"account_id\"]),",
+      "new": "lambda event: cache.invalidate(event[\"user_id\"]),"
+    }
+  ]
+}

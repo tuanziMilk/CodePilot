@@ -116,7 +116,7 @@ def run_demo(output_parent: Path, bash_path: Path) -> dict[str, object]:
             agent_max_steps=8,
             agent_max_retries=0,
             tool_policy_version="mvp-v1",
-            prompt_version="mvp-v1",
+            prompt_version="mvp-v2",
             planning_enabled=True,
             planning_mode="required",
             requires_reproduction=True,

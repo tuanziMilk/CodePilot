@@ -1,0 +1,34 @@
+{
+  "task_id": "role-cache-invalidation",
+  "repository": "../repos/role-cache-invalidation",
+  "issue_description": "Permission checks continue returning stale values after a user's roles change. A role update must invalidate only that user's cached permissions through the existing event mechanism; unrelated users must remain cached. The public roles.changed payload is exactly {'user_id': user_id, 'roles': sorted_role_names}; preserve that schema and avoid clearing the entire cache.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "authz/__init__.py",
+    "authz/audit.py",
+    "authz/cache.py",
+    "authz/controller.py",
+    "authz/events.py",
+    "authz/legacy_cache.py",
+    "authz/listeners.py",
+    "authz/permissions.py",
+    "authz/repository.py",
+    "authz/roles.py",
+    "authz/runtime.py",
+    "authz/tokens.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "bce07f877ff7a2f5e5229b6712e9d87e5567fbcb",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/role_cache_invalidation_test.py",
+  "difficulty": "hard-v2",
+  "task_family": "indirect-event-invalidation"
+}

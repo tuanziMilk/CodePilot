@@ -3,6 +3,14 @@
 本文冻结 CodePilot 求职 MVP 的两轮主要真实模型实验。原始 `artifacts/` 含完整 workspace、轨迹和
 CLI 输出，因体积、运行时文件和潜在本机路径不进入 Git；这里保留协议、聚合数字和可复核解释。
 
+> 这两轮数据早于 `hard_suite_v2`，不能与新套件直接混算。6 个多文件任务的 mvp-v2 候选结果见
+> [hard_suite_v2_results.md](hard_suite_v2_results.md)，运行说明见
+> [hard_suite_v2.md](hard_suite_v2.md)。
+
+首轮 hard-v2 探索运行已经用于发现并修正 benchmark 契约和 step-limit 终止问题，但由于协议随后
+升级为 `mvp-v2`，该轮不作为正式排名。分析见
+[hard_suite_v2_exploratory_results.md](hard_suite_v2_exploratory_results.md)。
+
 ## 固定条件
 
 | 项目 | 值 |
@@ -85,3 +93,14 @@ query 的三次重复当成六个独立检索任务。
 求职项目能够支持的结论是：CodePilot 已形成可运行、可追踪、可评估的 Coding Agent 闭环；可靠性
 控制和 retrieval 在当前小样本中改变了步骤与成本，并产生了可解释的成功/失败轨迹。它不能支持
 SWE-bench、生产级 sandbox 或一般化显著提升等更强主张。
+
+## Experiment C：6-task Hard Suite V2（mvp-v2 候选结果）
+
+运行规模：6 tasks × 4 configurations × 1 repeat = 24 cases。四组配置均为 6/6 strict success。
+Retrieval 的平均 Steps 最少（9.17）；Full 的平均 Token（36,701.8）、latency（47.1s）、读取次数
+（12.33）和 denied calls（共 5 次）最低。Full 相对 Basic 平均 Token 少 10.7%、latency 少
+17.3%。5 次运行由 step-limit 后的最终 verifier 正确收敛，直接验证了新版 termination 语义。
+
+Retrieval reference Hit@1 为 16.7%，平均 reference-file recall@K 为 61.1%，说明 Top-3 通常命中
+相关区域但不能覆盖全部多文件修复点。完整表格、工具拒绝分类、过度修改案例与复现限制见
+[hard_suite_v2_results.md](hard_suite_v2_results.md)。

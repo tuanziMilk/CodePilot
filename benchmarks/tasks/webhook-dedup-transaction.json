@@ -1,0 +1,34 @@
+{
+  "task_id": "webhook-dedup-transaction",
+  "repository": "../repos/webhook-dedup-transaction",
+  "issue_description": "Webhook delivery tracking currently marks an event processed before its handler succeeds. A failed handler must leave no delivery record and must be retryable. After success, an identical delivery must return the original result without another handler call, while reuse of the same event id for a different payload must raise DeliveryConflict. Do not mutate payloads.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "webhooks/__init__.py",
+    "webhooks/audit.py",
+    "webhooks/errors.py",
+    "webhooks/handler.py",
+    "webhooks/legacy.py",
+    "webhooks/metrics.py",
+    "webhooks/model.py",
+    "webhooks/queue.py",
+    "webhooks/router.py",
+    "webhooks/service.py",
+    "webhooks/signatures.py",
+    "webhooks/store.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "e2d916a2d07684b93cb0ffbc7a717f8b6f43a790",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/webhook_dedup_transaction_test.py",
+  "difficulty": "hard-v2",
+  "task_family": "multi-file-idempotent-side-effect"
+}

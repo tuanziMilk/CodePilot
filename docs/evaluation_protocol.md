@@ -19,6 +19,11 @@ python run.py eval --suite benchmarks/suite.json --repeat 3
 重试类任务。报告额外统计 Retrieval Hit@1/Hit@3、平均 read/search 次数、permission denial
 和重复 Plan no-op；这些都是可观察 Harness 行为，不包含模型隐藏 reasoning。
 
+旧套件出现明显成功率天花板后，使用 `benchmarks/hard_suite_v2.json`。它包含 6 道 12–13 文件、
+2–3 个参考修改点的任务。旧的 changed-file Hit@K 保留用于兼容；新增 reference Hit@1 与
+reference file recall@K 由 evaluator 在运行后根据外部 reference metadata 计算，不进入 Agent
+TaskSpec，也不会向模型提示目标文件。多文件任务应优先看 reference recall，而不只看首次命中。
+
 `--list` / `--dry-run` 检查任务、基线 SHA、外部验收文件和重复项，列出将运行的 case 数；不读 API Key，不调用 LLM，不新建实验目录。实际运行才会使用你配置的模型服务，并按 case 产生真实请求。
 
 可以重复传 `--task-file` 来选择几个 TaskSpec；`--suite` 的 tasks 路径相对 suite.json。重复 task_id 或 configuration 会在写文件前被拒绝。`--case-timeout 600` 是单次 Agent CLI 的时间限制，`--test-timeout 120` 是每次测试检查的限制，Git 命令限时 30 秒。
@@ -44,7 +49,12 @@ python run.py eval --suite benchmarks/suite.json --repeat 3
 
 `verification_command` 是模型可见的运行提示，也是 Harness 自己的 visible verifier。`acceptance_test_file` 则相对原 TaskSpec 定位，在 Agent workspace 外；它不会被复制到 clone 或写入 Agent 的 TaskSpec。acceptance 使用额外输入检查是否只针对可见测试写死结果，其文件摘要必须保持不变。这是逻辑上的隔离；本项目不提供对恶意代码的操作系统沙箱。
 
-最终 `evaluation_outcome=success` 必须同时满足 CLI 成功返回、Harness `verified_success`、visible verifier 通过、外部 acceptance 通过、文件审计通过。正确补丁但 `max_steps` 仍是 failed，并单独保留 `acceptance_passed=true`。缺失 CLI artifacts 是 infra_error；单个 case 的基础设施异常会保存 result.json，后续 case 继续，汇总每次更新。
+最终 `evaluation_outcome=success` 必须同时满足 CLI 成功返回、Harness `verified_success`、visible verifier 通过、外部 acceptance 通过、文件审计通过。缺失 CLI artifacts 是 infra_error；单个 case 的基础设施异常会保存 result.json，后续 case 继续，汇总每次更新。
+
+从 prompt `mvp-v2` 起，`max_steps` 只限制 LLM 行动轮数。最后一轮结束后 Harness 会额外运行一次
+声明的本地 verifier，但不会再调用模型或允许修复：通过则记为 `verified_success` 并设置
+`verified_at_step_limit=true`，失败仍记为 `max_steps`。报告中的 `step_limit_successes` 单独统计这种
+情况，避免把“补丁已正确但模型未及时停止”混同于“代码仍错误”。
 
 ## 阅读结果
 

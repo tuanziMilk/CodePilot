@@ -18,7 +18,7 @@ python run.py validate
 python run.py demo
 ```
 
-`prepare` 准备 15 个 Git repo、TaskSpec、外部 acceptance test 和 reference fix。已经存在且
+`prepare` 准备 21 个 Git repo、TaskSpec、外部 acceptance test 和 reference fix。已经存在且
 干净的基线会复用；若你直接修改过它，命令会拒绝覆盖，保护你的文件。
 
 `validate` 新克隆两个 workspace：baseline 保留 Bug，reference 应用已知修复，然后分别跑可见
@@ -54,6 +54,14 @@ Copy-Item .env.example .env
 Provider retry 与 repair retry 不是同一个东西。新增版本会分别保留计数；一次 run 中普通工具失败
 后模型再次尝试，也不自动算 repair retry。
 
+当前 prompt 协议为 `mvp-v2`。如果 `.env` 来自旧版本，请确认：
+
+```text
+PROMPT_VERSION=mvp-v2
+```
+
+该字段只用于实验身份记录，不包含任何密钥。
+
 ## 4. 先试一道题
 
 ```powershell
@@ -88,7 +96,7 @@ artifacts/evaluations/<time>/
 
 ## 5. 运行整个任务集
 
-先跑 basic/full，20 个 Agent runs：
+先跑全部任务的 basic/full，共 42 个 Agent runs：
 
 ```powershell
 python run.py eval --suite benchmarks\suite.json --config basic --config full
@@ -100,7 +108,18 @@ python run.py eval --suite benchmarks\suite.json --config basic --config full
 python run.py eval --suite benchmarks\challenge_suite.json
 ```
 
-完整 15 题是 60 个 runs：`python run.py eval --suite benchmarks\suite.json`。
+若目的是打破旧任务的成功率天花板，优先运行 6 道 `hard-v2`。预算优先时只跑 basic/full，
+共 12 个 runs；若要生成单一目录下的完整四配置对照，则直接运行 24 个 runs，不必先重复跑一轮：
+
+```powershell
+python run.py eval --suite benchmarks\hard_suite_v2.json --dry-run
+python run.py eval --suite benchmarks\hard_suite_v2.json --config basic --config full
+# 或者直接完整运行（不要和上一条重复执行）
+python run.py eval --suite benchmarks\hard_suite_v2.json
+```
+
+全部 21 题、四配置共 84 个 runs：`python run.py eval --suite benchmarks\suite.json`。通常没有必要
+先花这笔 API 成本；求职版本更适合先把 hard-v2 跑完并分析失败轨迹。
 
 每次运行都创建新时间戳目录，可重复执行，不用手动恢复源码。`--repeat 3` 表示每个 task/config
 各运行三次。单次硬超时用 `--case-timeout` 控制，评估侧本地测试超时用 `--test-timeout` 控制。

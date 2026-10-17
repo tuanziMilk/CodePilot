@@ -1,0 +1,34 @@
+{
+  "task_id": "filtered-cursor-pagination",
+  "repository": "../repos/filtered-cursor-pagination",
+  "issue_description": "Filtered catalog pagination is unstable: records can be returned out of id order, the item named by a cursor can appear again on the next page, and a final full page advertises a continuation that has no records. Use an exclusive cursor over stable id order, preserve filtering, reject invalid limits/cursors, and do not mutate records.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "catalog_v2/__init__.py",
+    "catalog_v2/controller.py",
+    "catalog_v2/cursor.py",
+    "catalog_v2/errors.py",
+    "catalog_v2/export.py",
+    "catalog_v2/filtering.py",
+    "catalog_v2/legacy_offset.py",
+    "catalog_v2/metrics.py",
+    "catalog_v2/model.py",
+    "catalog_v2/repository.py",
+    "catalog_v2/service.py",
+    "catalog_v2/sorting.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "a9ac5853d4c2f806be900b31e7d6a9806ff9dfa6",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/filtered_cursor_pagination_test.py",
+  "difficulty": "hard-v2",
+  "task_family": "multi-file-pagination-contract"
+}

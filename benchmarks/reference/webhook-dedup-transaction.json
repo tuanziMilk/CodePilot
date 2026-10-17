@@ -1,0 +1,19 @@
+{
+  "task_id": "webhook-dedup-transaction",
+  "path": "webhooks/store.py",
+  "old": "class DeliveryStore:\n    def __init__(self):\n        self.records = {}\n\n    def get(self, event_id):\n        return self.records.get(event_id)\n\n    def mark_processed(self, event_id):\n        self.records[event_id] = True\n",
+  "new": "class DeliveryStore:\n    def __init__(self):\n        self.records = {}\n\n    def get(self, event_id):\n        return self.records.get(event_id)\n\n    def mark_processed(self, event_id, digest, result):\n        self.records[event_id] = (digest, result)\n",
+  "baseline_definition_sha256": "904bbf08408c033874fe4969c4d9ffa621e80f31bf82c8419ecc1e36098f25e9",
+  "edits": [
+    {
+      "path": "webhooks/store.py",
+      "old": "class DeliveryStore:\n    def __init__(self):\n        self.records = {}\n\n    def get(self, event_id):\n        return self.records.get(event_id)\n\n    def mark_processed(self, event_id):\n        self.records[event_id] = True\n",
+      "new": "class DeliveryStore:\n    def __init__(self):\n        self.records = {}\n\n    def get(self, event_id):\n        return self.records.get(event_id)\n\n    def mark_processed(self, event_id, digest, result):\n        self.records[event_id] = (digest, result)\n"
+    },
+    {
+      "path": "webhooks/service.py",
+      "old": "class WebhookService:\n    def __init__(self, store, handler):\n        self.store = store\n        self.handler = handler\n\n    def deliver(self, event_id, payload):\n        if self.store.get(event_id):\n            return {\"status\": \"duplicate\"}\n        self.store.mark_processed(event_id)\n        return self.handler.handle(payload)\n",
+      "new": "class WebhookService:\n    def __init__(self, store, handler):\n        self.store = store\n        self.handler = handler\n\n    def deliver(self, event_id, payload):\n        digest = payload_digest(payload)\n        record = self.store.get(event_id)\n        if record is not None:\n            previous_digest, result = record\n            if previous_digest != digest:\n                raise DeliveryConflict(event_id)\n            return result\n        result = self.handler.handle(payload)\n        self.store.mark_processed(event_id, digest, result)\n        return result\n"
+    }
+  ]
+}

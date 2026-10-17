@@ -37,8 +37,8 @@ def render_markdown(summary: dict[str, Any]) -> str:
         "",
         "## Operational metrics",
         "",
-        "| Config | Avg reads | Avg searches | Avg denied | Plan no-ops | Retrieval Hit@1 | Retrieval Hit@3 |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| Config | Avg reads | Avg searches | Avg denied | Plan no-ops | Step-limit saves | Changed Hit@1 | Changed Hit@3 | Reference Hit@1 | Reference recall@K |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for name, metrics in summary.get("by_config", {}).items():
         operational = [
@@ -47,8 +47,11 @@ def render_markdown(summary: dict[str, Any]) -> str:
             metrics.get("avg_search_text_count"),
             metrics.get("avg_tool_denied_count"),
             metrics.get("plan_noops"),
+            metrics.get("step_limit_successes"),
             metrics.get("retrieval_hit_at_1_rate"),
             metrics.get("retrieval_hit_at_3_rate"),
+            metrics.get("retrieval_reference_hit_at_1_rate"),
+            metrics.get("avg_retrieval_reference_file_recall"),
         ]
         lines.append("| " + " | ".join(_display(value) for value in operational) + " |")
     lines += [
@@ -87,7 +90,10 @@ def write_reports(summary: dict[str, Any], output: Path) -> None:
         "read_file_count",
         "search_text_count",
         "plan_noop_count",
+        "verified_at_step_limit",
         "retrieval_hit_rank",
+        "retrieval_reference_hit_rank",
+        "retrieval_reference_file_recall",
     ]
     with (output / "report.csv").open("w", newline="", encoding="utf-8-sig") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)

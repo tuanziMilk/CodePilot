@@ -1,0 +1,10 @@
+{
+  "tasks": [
+    "tasks/schema-alias-migration.json",
+    "tasks/role-cache-invalidation.json",
+    "tasks/filtered-cursor-pagination.json",
+    "tasks/webhook-dedup-transaction.json",
+    "tasks/plugin-resolution-shadowing.json",
+    "tasks/ledger-transfer-atomicity.json"
+  ]
+}

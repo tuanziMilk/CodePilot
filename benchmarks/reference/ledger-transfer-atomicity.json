@@ -1,0 +1,19 @@
+{
+  "task_id": "ledger-transfer-atomicity",
+  "path": "ledger/idempotency.py",
+  "old": "class RequestLog:\n    def __init__(self):\n        self.records = {}\n\n    def lookup(self, key):\n        return self.records.get(key)\n\n    def remember(self, key, result):\n        self.records[key] = result\n",
+  "new": "class RequestLog:\n    def __init__(self):\n        self.records = {}\n\n    def lookup(self, key):\n        return self.records.get(key)\n\n    def remember(self, key, request, result):\n        self.records[key] = (request, result)\n",
+  "baseline_definition_sha256": "51c1b6c306f83b485112f1c43b0c8cb8fcafa4200cfcbb3a986e01a0cf44c092",
+  "edits": [
+    {
+      "path": "ledger/idempotency.py",
+      "old": "class RequestLog:\n    def __init__(self):\n        self.records = {}\n\n    def lookup(self, key):\n        return self.records.get(key)\n\n    def remember(self, key, result):\n        self.records[key] = result\n",
+      "new": "class RequestLog:\n    def __init__(self):\n        self.records = {}\n\n    def lookup(self, key):\n        return self.records.get(key)\n\n    def remember(self, key, request, result):\n        self.records[key] = (request, result)\n"
+    },
+    {
+      "path": "ledger/service.py",
+      "old": "class TransferService:\n    def __init__(self, accounts, journal, requests):\n        self.accounts = accounts\n        self.journal = journal\n        self.requests = requests\n\n    def transfer(self, key, source_id, target_id, amount):\n        cached = self.requests.lookup(key)\n        if cached is not None:\n            return cached\n        if amount <= 0:\n            raise ValueError(\"amount must be positive\")\n        source_balance = self.accounts.balance(source_id)\n        if source_balance < amount:\n            raise InsufficientFunds(source_id)\n        self.journal.append({\n            \"account_id\": source_id, \"kind\": \"debit\", \"amount\": amount\n        })\n        self.accounts.balance(target_id)\n        self.journal.append({\n            \"account_id\": target_id, \"kind\": \"credit\", \"amount\": amount\n        })\n        result = {\"source\": source_id, \"target\": target_id, \"amount\": amount}\n        self.requests.remember(key, result)\n        return result\n",
+      "new": "class TransferService:\n    def __init__(self, accounts, journal, requests):\n        self.accounts = accounts\n        self.journal = journal\n        self.requests = requests\n\n    def transfer(self, key, source_id, target_id, amount):\n        request = (source_id, target_id, amount)\n        cached = self.requests.lookup(key)\n        if cached is not None:\n            previous_request, result = cached\n            if previous_request != request:\n                raise TransferConflict(key)\n            return result\n        if amount <= 0:\n            raise ValueError(\"amount must be positive\")\n        source_balance = self.accounts.balance(source_id)\n        self.accounts.balance(target_id)\n        if source_balance < amount:\n            raise InsufficientFunds(source_id)\n        entries = [\n            {\"account_id\": source_id, \"kind\": \"debit\", \"amount\": amount},\n            {\"account_id\": target_id, \"kind\": \"credit\", \"amount\": amount},\n        ]\n        self.journal.append_many(entries)\n        result = {\"source\": source_id, \"target\": target_id, \"amount\": amount}\n        self.requests.remember(key, request, result)\n        return result\n"
+    }
+  ]
+}

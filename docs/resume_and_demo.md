@@ -16,13 +16,15 @@ diff audit 比较四种 Agent 配置，而不是只展示一次成功 Demo。
   请求重试和任务级 bounded repair。
 - 实现 Workspace 路径边界、允许文件审计、受限 Git Bash、精确编辑与 JSONL trajectory，记录
   Git commit、Token、latency、退出码和状态变化，同时避免持久化 API Key 与私有 Chain-of-Thought。
-- 构建 15 个固定 Git 故障基线及独立 acceptance tests，对 Basic、Reliable、Retrieval、Full 四组
-  配置进行自动化评测；5-task challenge suite 达到 20/20 最终成功，Lexical Retrieval Hit@3=100%。
-- 在两个代表任务的 3 次重复实验中完成 24/24 runs；相较 Basic，Retrieval 平均 Steps 减少约
-  18.4%、Tokens 减少约 35.3%，并通过 trajectory 识别 premature stop、permission denial 与
-  Provider/Agent retry 等 failure modes。
+- 构建 21 个固定 Git 故障基线及独立 acceptance tests，其中 6 题要求跨 2–3 个文件维护契约；对
+  Basic、Reliable、Retrieval、Full 四组配置进行自动化评测；6-task hard-v2 候选实验达到 24/24
+  strict success，Lexical Retrieval Hit@3=100%、reference-file recall@K=61.1%。
+- 在 hard-v2 实验中，Full 相较 Basic 平均 Tokens 减少 10.7%、latency 减少 17.3%、文件读取减少
+  19.6%；通过 trajectory 识别并修复 step-limit 误判，并分析 permission denial、Provider retry
+  与轻微过度修改等 failure modes。
 
-最后一条必须和限定条件一起理解：只有两个独立任务，不能写成统计显著或一般化性能提升。如果希望
+最后一条必须和限定条件一起理解：只有 6 个独立任务且每配置只运行一次，不能写成统计显著或一般化
+性能提升。正式投递前应从 clean commit 重跑一次并替换候选数字。如果希望
 简历更保守，可改为：
 
 > 通过 2×2 ablation 记录成功率、Steps、Token、latency、Retrieval Hit@K 与权限拒绝，并结合

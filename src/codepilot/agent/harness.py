@@ -40,6 +40,7 @@ class RunState:
     plan_version: int = 0
     plan_steps: list[str] = field(default_factory=list)
     plan_noop_count: int = 0
+    verified_at_step_limit: bool = False
 
 
 @dataclass(frozen=True)
@@ -185,13 +186,9 @@ class AgentHarness:
                 not verification.passed and state.repair_retry_count < self._max_retries
             )
             self._trajectory.write_event(
-                TrajectoryEvent(
-                    run_id=self._run_id,
-                    step=step,
-                    event_type="verification",
-                    tool_name="verification",
-                    tool_result_summary=verification.output_summary,
-                    return_code=verification.return_code,
+                self._verification_event(
+                    state,
+                    verification,
                     state_change=(
                         TerminalState.VERIFIED_SUCCESS.value
                         if verification.passed
@@ -201,11 +198,6 @@ class AgentHarness:
                             else TerminalState.VERIFICATION_FAILED.value
                         )
                     ),
-                    verification_result=verification.passed,
-                    retry_count=state.repair_retry_count,
-                    plan_version=state.plan_version or None,
-                    plan_steps=state.plan_steps or None,
-                    latency_ms=verification.duration_ms,
                 )
             )
             if retrying:
@@ -229,6 +221,22 @@ class AgentHarness:
             )
             return RunResult(terminal, state, verification)
 
+        verification = self._verifier.verify(verification_command)
+        self._trajectory.write_event(
+            self._verification_event(
+                state,
+                verification,
+                state_change=(
+                    TerminalState.VERIFIED_SUCCESS.value
+                    if verification.passed
+                    else "max_steps_verification_failed"
+                ),
+            )
+        )
+        if verification.passed:
+            state.verified_at_step_limit = True
+            return RunResult(TerminalState.VERIFIED_SUCCESS, state, verification)
+
         self._trajectory.write_event(
             TrajectoryEvent(
                 run_id=self._run_id,
@@ -237,7 +245,29 @@ class AgentHarness:
                 state_change=TerminalState.MAX_STEPS.value,
             )
         )
-        return RunResult(TerminalState.MAX_STEPS, state, None)
+        return RunResult(TerminalState.MAX_STEPS, state, verification)
+
+    def _verification_event(
+        self,
+        state: RunState,
+        verification: VerificationResult,
+        *,
+        state_change: str,
+    ) -> TrajectoryEvent:
+        return TrajectoryEvent(
+            run_id=self._run_id,
+            step=state.step,
+            event_type="verification",
+            tool_name="verification",
+            tool_result_summary=verification.output_summary,
+            return_code=verification.return_code,
+            state_change=state_change,
+            verification_result=verification.passed,
+            retry_count=state.repair_retry_count,
+            plan_version=state.plan_version or None,
+            plan_steps=state.plan_steps or None,
+            latency_ms=verification.duration_ms,
+        )
 
     def _execute_call(
         self,
@@ -314,6 +344,8 @@ class AgentHarness:
         if self._require_plan:
             additions.append(
                 "Before other tools, call update_plan with 1 to 6 short public execution steps. "
+                'Use exactly this argument shape: {"steps":["Inspect files","Reproduce '
+                'failure","Apply fix","Verify"]}; every array item must be a string. '
                 "Call it again only when the plan materially changes; never repeat an unchanged "
                 "plan. After the declared test passes, finish without another plan update."
             )

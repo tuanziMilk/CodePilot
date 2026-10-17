@@ -11,6 +11,13 @@ def source(value: str) -> str:
 
 
 @dataclass(frozen=True)
+class ReferenceEdit:
+    path: str
+    old: str
+    new: str
+
+
+@dataclass(frozen=True)
 class BenchmarkTask:
     task_id: str
     difficulty: str
@@ -22,6 +29,10 @@ class BenchmarkTask:
     fix_path: str
     old: str
     new: str
+    additional_fixes: tuple[ReferenceEdit, ...] = ()
+
+    def reference_edits(self) -> tuple[ReferenceEdit, ...]:
+        return (ReferenceEdit(self.fix_path, self.old, self.new), *self.additional_fixes)
 
     def reference_source(self) -> str:
         content = self.files[self.fix_path]
@@ -30,7 +41,7 @@ class BenchmarkTask:
         return content.replace(self.old, self.new, 1)
 
 
-def task_definitions() -> tuple[BenchmarkTask, ...]:
+def base_task_definitions() -> tuple[BenchmarkTask, ...]:
     return (
         BenchmarkTask(
             "addition-smoke", "smoke", "arithmetic",
@@ -1240,3 +1251,11 @@ def task_definitions() -> tuple[BenchmarkTask, ...]:
                 '''),
         ),
     )
+
+
+def task_definitions() -> tuple[BenchmarkTask, ...]:
+    """Return the regression tasks followed by the frozen hard-v2 suite."""
+
+    from codepilot.benchmarks.hard_definitions import hard_task_definitions
+
+    return (*base_task_definitions(), *hard_task_definitions())

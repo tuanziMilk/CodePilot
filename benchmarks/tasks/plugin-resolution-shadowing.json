@@ -1,0 +1,35 @@
+{
+  "task_id": "plugin-resolution-shadowing",
+  "repository": "../repos/plugin-resolution-shadowing",
+  "issue_description": "Plugin resolution chooses a legacy implementation or version 2 over version 10. When the primary registry has candidates, select its highest numeric dotted version; only fall back to the legacy registry when primary has none. Missing optional plugins return None and missing required plugins still raise PluginNotFound.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "plugins_v2/__init__.py",
+    "plugins_v2/audit.py",
+    "plugins_v2/compat.py",
+    "plugins_v2/config.py",
+    "plugins_v2/defaults.py",
+    "plugins_v2/discovery.py",
+    "plugins_v2/errors.py",
+    "plugins_v2/legacy_registry.py",
+    "plugins_v2/loader.py",
+    "plugins_v2/manifest.py",
+    "plugins_v2/registry.py",
+    "plugins_v2/resolver.py",
+    "plugins_v2/runtime.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "bfd0f8629877235de1db4b171812b5a0f7cf3bac",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/plugin_resolution_shadowing_test.py",
+  "difficulty": "hard-v2",
+  "task_family": "lexical-distractor-resolution"
+}

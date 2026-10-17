@@ -29,14 +29,23 @@ def run_tests(workspace: Path, acceptance: Path | None = None) -> dict:
 
 
 def apply_reference(workspace: Path, reference: dict) -> None:
-    target = (workspace / reference["path"]).resolve()
-    if not target.is_relative_to(workspace.resolve()):
-        raise ValueError("Reference path escapes validation workspace")
-    content = target.read_text(encoding="utf-8")
-    if content.count(reference["old"]) != 1:
-        raise ValueError("Reference edit requires exactly one original match")
-    target.write_text(content.replace(reference["old"], reference["new"], 1),
-                      encoding="utf-8", newline="\n")
+    edits = reference.get("edits") or [{
+        "path": reference["path"],
+        "old": reference["old"],
+        "new": reference["new"],
+    }]
+    for edit in edits:
+        target = (workspace / edit["path"]).resolve()
+        if not target.is_relative_to(workspace.resolve()):
+            raise ValueError("Reference path escapes validation workspace")
+        content = target.read_text(encoding="utf-8")
+        if content.count(edit["old"]) != 1:
+            raise ValueError("Reference edit requires exactly one original match")
+        target.write_text(
+            content.replace(edit["old"], edit["new"], 1),
+            encoding="utf-8",
+            newline="\n",
+        )
 
 
 def validate_suite(suite_path: Path, output: Path) -> dict:

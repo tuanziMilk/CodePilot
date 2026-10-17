@@ -1,0 +1,19 @@
+{
+  "task_id": "plugin-resolution-shadowing",
+  "path": "plugins_v2/registry.py",
+  "old": "class Registry:\n    def __init__(self, plugins=()):\n        self.plugins = [dict(plugin) for plugin in plugins]\n\n    def find(self, name):\n        matches = [plugin for plugin in self.plugins if plugin[\"name\"] == name]\n        return sorted(matches, key=lambda plugin: plugin[\"version\"], reverse=True)\n",
+  "new": "def _version_key(plugin):\n    return tuple(int(part) for part in plugin[\"version\"].split(\".\"))\n\n\nclass Registry:\n    def __init__(self, plugins=()):\n        self.plugins = [dict(plugin) for plugin in plugins]\n\n    def find(self, name):\n        matches = [plugin for plugin in self.plugins if plugin[\"name\"] == name]\n        return sorted(matches, key=_version_key, reverse=True)\n",
+  "baseline_definition_sha256": "4f18034b47426efdaf4e73e29318f5dd571905e25362dcbdb1c36eb75c9330fd",
+  "edits": [
+    {
+      "path": "plugins_v2/registry.py",
+      "old": "class Registry:\n    def __init__(self, plugins=()):\n        self.plugins = [dict(plugin) for plugin in plugins]\n\n    def find(self, name):\n        matches = [plugin for plugin in self.plugins if plugin[\"name\"] == name]\n        return sorted(matches, key=lambda plugin: plugin[\"version\"], reverse=True)\n",
+      "new": "def _version_key(plugin):\n    return tuple(int(part) for part in plugin[\"version\"].split(\".\"))\n\n\nclass Registry:\n    def __init__(self, plugins=()):\n        self.plugins = [dict(plugin) for plugin in plugins]\n\n    def find(self, name):\n        matches = [plugin for plugin in self.plugins if plugin[\"name\"] == name]\n        return sorted(matches, key=_version_key, reverse=True)\n"
+    },
+    {
+      "path": "plugins_v2/resolver.py",
+      "old": "candidates = legacy.find(name) + primary.find(name)",
+      "new": "candidates = primary.find(name) + legacy.find(name)"
+    }
+  ]
+}

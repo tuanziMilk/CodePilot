@@ -1,0 +1,24 @@
+{
+  "task_id": "filtered-cursor-pagination",
+  "path": "catalog_v2/repository.py",
+  "old": "class CatalogRepository:\n    def __init__(self, records):\n        self.records = [dict(record) for record in records]\n\n    def matching(self, category):\n        return [\n            dict(record) for record in self.records\n            if category is None or record.get(\"category\") == category\n        ]\n",
+  "new": "class CatalogRepository:\n    def __init__(self, records):\n        self.records = [dict(record) for record in records]\n\n    def matching(self, category):\n        matches = [\n            dict(record) for record in self.records\n            if category is None or record.get(\"category\") == category\n        ]\n        return sorted(matches, key=lambda record: record[\"id\"])\n",
+  "baseline_definition_sha256": "a41ea97748ab4670febf902f57d09a3e01dd7fcd07ef67a39f387119c3247705",
+  "edits": [
+    {
+      "path": "catalog_v2/repository.py",
+      "old": "class CatalogRepository:\n    def __init__(self, records):\n        self.records = [dict(record) for record in records]\n\n    def matching(self, category):\n        return [\n            dict(record) for record in self.records\n            if category is None or record.get(\"category\") == category\n        ]\n",
+      "new": "class CatalogRepository:\n    def __init__(self, records):\n        self.records = [dict(record) for record in records]\n\n    def matching(self, category):\n        matches = [\n            dict(record) for record in self.records\n            if category is None or record.get(\"category\") == category\n        ]\n        return sorted(matches, key=lambda record: record[\"id\"])\n"
+    },
+    {
+      "path": "catalog_v2/cursor.py",
+      "old": "start = ids.index(cursor)",
+      "new": "start = ids.index(cursor) + 1"
+    },
+    {
+      "path": "catalog_v2/service.py",
+      "old": "next_cursor = page[-1][\"id\"] if len(page) == limit else None",
+      "new": "next_cursor = (\n            page[-1][\"id\"]\n            if page and page[-1][\"id\"] != rows[-1][\"id\"]\n            else None\n        )"
+    }
+  ]
+}

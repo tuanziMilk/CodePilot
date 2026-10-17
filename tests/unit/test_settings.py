@@ -18,3 +18,4 @@ def test_redacted_snapshot_does_not_contain_api_key() -> None:
     assert snapshot["llm_request_retries"] == 2
     assert snapshot["agent_max_retries"] == 1
     assert snapshot["tool_policy_version"] == "mvp-v1"
+    assert snapshot["prompt_version"] == "mvp-v2"

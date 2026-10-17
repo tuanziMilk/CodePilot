@@ -73,11 +73,49 @@ def test_verification_failure_returns_feedback_for_one_repair_retry(tmp_path: Pa
     assert "verification_failed_retrying" in events
 
 
+def test_step_limit_runs_final_verifier_and_accepts_a_correct_workspace(tmp_path: Path) -> None:
+    harness, trajectory = _harness(
+        tmp_path,
+        [_edit_call("1")],
+        max_retries=0,
+        max_steps=1,
+    )
+
+    result = harness.run("Fix add.", "python -m pytest -q")
+
+    assert result.terminal_state is TerminalState.VERIFIED_SUCCESS
+    assert result.verification and result.verification.passed
+    assert result.state.verified_at_step_limit is True
+    events = (trajectory.artifact_dir / "trajectory.jsonl").read_text(encoding="utf-8")
+    assert '"state_change":"verified_success"' in events
+    assert '"state_change":"max_steps"' not in events
+
+
+def test_step_limit_keeps_max_steps_when_final_verification_fails(tmp_path: Path) -> None:
+    harness, trajectory = _harness(
+        tmp_path,
+        [_bash_call("1", "git status --short")],
+        max_retries=1,
+        max_steps=1,
+    )
+
+    result = harness.run("Fix add.", "python -m pytest -q")
+
+    assert result.terminal_state is TerminalState.MAX_STEPS
+    assert result.verification and not result.verification.passed
+    assert result.state.repair_retry_count == 0
+    assert result.state.verified_at_step_limit is False
+    events = (trajectory.artifact_dir / "trajectory.jsonl").read_text(encoding="utf-8")
+    assert "max_steps_verification_failed" in events
+    assert '"state_change":"max_steps"' in events
+
+
 def _harness(
     tmp_path: Path,
     messages: list[Message],
     *,
     max_retries: int,
+    max_steps: int = 8,
 ) -> tuple[AgentHarness, TrajectoryWriter]:
     (tmp_path / "calculator.py").write_text(
         "def add(a: int, b: int) -> int:\n    return a - b\n",
@@ -104,7 +142,7 @@ def _harness(
             temperature=0,
             max_output_tokens=100,
             llm_request_retries=0,
-            agent_max_steps=8,
+            agent_max_steps=max_steps,
             agent_max_retries=max_retries,
             tool_policy_version="test-v1",
             prompt_version="test-v1",
@@ -119,7 +157,7 @@ def _harness(
             trajectory,
             temperature=0,
             max_output_tokens=100,
-            max_steps=8,
+            max_steps=max_steps,
             max_retries=max_retries,
         ),
         trajectory,

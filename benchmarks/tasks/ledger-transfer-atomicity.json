@@ -1,0 +1,35 @@
+{
+  "task_id": "ledger-transfer-atomicity",
+  "repository": "../repos/ledger-transfer-atomicity",
+  "issue_description": "Ledger transfers can leave a debit entry behind when the destination account is invalid, and idempotency keys can silently reuse a result for a different transfer. Validate the complete transfer before appending entries, append the debit and credit as one batch, remember only successful requests, return an equal result for identical successful retries without appending entries, and reject conflicting key reuse with TransferConflict.",
+  "verification_command": "python -m pytest -q",
+  "allowed_files": [
+    "ledger/__init__.py",
+    "ledger/accounts.py",
+    "ledger/audit.py",
+    "ledger/balances.py",
+    "ledger/controller.py",
+    "ledger/errors.py",
+    "ledger/idempotency.py",
+    "ledger/journal.py",
+    "ledger/legacy.py",
+    "ledger/metrics.py",
+    "ledger/model.py",
+    "ledger/reporting.py",
+    "ledger/service.py"
+  ],
+  "visible_tests": [
+    "test_behavior.py"
+  ],
+  "forbidden_files": [
+    "test_behavior.py",
+    "README.md",
+    ".gitignore"
+  ],
+  "success_condition": "Visible tests and independent external acceptance tests pass.",
+  "initial_commit": "bc4f6a7e4919a9de9f3fc2c329fef57563d524f8",
+  "requires_reproduction": true,
+  "acceptance_test_file": "../acceptance/ledger_transfer_atomicity_test.py",
+  "difficulty": "hard-v2",
+  "task_family": "multi-file-atomic-idempotency"
+}

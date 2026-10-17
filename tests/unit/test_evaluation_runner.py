@@ -6,6 +6,7 @@ from codepilot.evaluation.runner import (
     _clone_baseline,
     aggregate_records,
     materialize_task_file,
+    retrieval_file_recall,
     retrieval_hit_rank,
 )
 from codepilot.models.task import TaskSpec, load_task_spec
@@ -60,6 +61,9 @@ def test_aggregate_records_groups_success_and_observable_metrics() -> None:
                 "configuration": {"retrieval_mode": "lexical"},
                 "changed_files": ["calculator.py"],
                 "retrieval_hit_rank": 2,
+                "reference_fix_files": ["calculator.py", "service.py"],
+                "retrieval_paths": ["tests.py", "calculator.py"],
+                "verified_at_step_limit": True,
             },
             {
                 "config": "basic",
@@ -72,6 +76,8 @@ def test_aggregate_records_groups_success_and_observable_metrics() -> None:
                 "configuration": {"retrieval_mode": "lexical"},
                 "changed_files": ["calculator.py"],
                 "retrieval_hit_rank": None,
+                "reference_fix_files": ["calculator.py", "service.py"],
+                "retrieval_paths": ["tests.py"],
             },
         ]
     )
@@ -86,8 +92,11 @@ def test_aggregate_records_groups_success_and_observable_metrics() -> None:
     assert basic["avg_llm_latency_ms"] == 400
     assert basic["tool_errors"] == 1
     assert basic["tool_denied"] == 2
+    assert basic["step_limit_successes"] == 1
     assert basic["retrieval_hit_at_1_rate"] == 0
     assert basic["retrieval_hit_at_3_rate"] == 0.5
+    assert basic["retrieval_reference_hit_at_1_rate"] == 0
+    assert basic["avg_retrieval_reference_file_recall"] == 0.25
 
 
 def test_retrieval_hit_rank_uses_first_changed_file_match() -> None:
@@ -96,6 +105,14 @@ def test_retrieval_hit_rank_uses_first_changed_file_match() -> None:
         ["tests.py", "model.py", "service.py"],
     ) == 2
     assert retrieval_hit_rank(["service.py"], ["tests.py"]) is None
+
+
+def test_retrieval_file_recall_measures_multi_file_reference_coverage() -> None:
+    assert retrieval_file_recall(
+        ["package/service.py", "package/store.py"],
+        ["README.md", "package\\store.py"],
+    ) == 0.5
+    assert retrieval_file_recall([], ["package/store.py"]) is None
 
 
 def test_clone_baseline_uses_committed_initial_state_not_source_worktree(tmp_path: Path) -> None:

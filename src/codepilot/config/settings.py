@@ -33,7 +33,7 @@ class Settings(BaseModel):
     agent_max_steps: int = Field(default=12, ge=1)
     agent_max_retries: int = Field(default=1, ge=0)
     tool_policy_version: str = "mvp-v1"
-    prompt_version: str = "mvp-v1"
+    prompt_version: str = "mvp-v2"
     command_timeout_seconds: float = Field(default=60, gt=0)
 
     @field_validator("llm_provider")
@@ -81,7 +81,7 @@ class Settings(BaseModel):
             agent_max_steps=int(os.getenv("AGENT_MAX_STEPS", "12")),
             agent_max_retries=int(os.getenv("AGENT_MAX_RETRIES", "1")),
             tool_policy_version=os.getenv("TOOL_POLICY_VERSION", "mvp-v1"),
-            prompt_version=os.getenv("PROMPT_VERSION", "mvp-v1"),
+            prompt_version=os.getenv("PROMPT_VERSION", "mvp-v2"),
             command_timeout_seconds=float(os.getenv("COMMAND_TIMEOUT_SECONDS", "60")),
         )
 

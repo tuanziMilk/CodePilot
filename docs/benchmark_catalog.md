@@ -1,6 +1,6 @@
 # 第一版任务集与本地验收
 
-这 15 道题由本项目生成，都是合成 Python 仓库，不包含原 Spring 项目或其他个人业务代码。
+这 21 道题由本项目生成，都是合成 Python 仓库，不包含原 Spring 项目或其他个人业务代码。
 只依赖 Python 标准库与 pytest，执行 `python run.py prepare` 后即可使用。
 
 | Task ID | 层级 | 主要行为 | 仓库实现模块 |
@@ -20,6 +20,12 @@
 | payment-idempotency-conflict | challenge | 幂等键载荷冲突与失败重试状态 | 5 |
 | profile-event-versioning | challenge | 乱序、重复、冲突与缺口事件投影 | 5 |
 | retry-error-classification | challenge | 永久/瞬态错误分类与精确重试预算 | 5 |
+| schema-alias-migration | hard-v2 | 新旧字段兼容读取与规范化写出 | 12 |
+| role-cache-invalidation | hard-v2 | 经事件总线定向失效权限缓存 | 12 |
+| filtered-cursor-pagination | hard-v2 | 筛选、稳定排序与排他游标契约 | 12 |
+| webhook-dedup-transaction | hard-v2 | 副作用成功后落账与幂等冲突 | 12 |
+| plugin-resolution-shadowing | hard-v2 | 版本排序及主/旧注册表遮蔽 | 13 |
+| ledger-transfer-atomicity | hard-v2 | 批量原子提交与请求级幂等 | 13 |
 
 层级是任务内部的相对分类，不意味着达到真实工业项目的 hard 难度。前 10 题用于稳定回归；
 challenge 题增加跨文件契约、状态不变量和隐藏边界，但仍保持单一根因与短参考修复。多文件题
@@ -48,8 +54,9 @@ python -m codepilot.benchmarks.prepare --output benchmarks_new
 
 ```text
 benchmarks/
-  suite.json                 # 全部 15 题
+  suite.json                 # 全部 21 题
   challenge_suite.json       # 5 道较难题
+  hard_suite_v2.json         # 6 道多文件 hard-v2 题
   tasks/*.json             # Agent 任务和 evaluator 元数据
   repos/<task_id>/         # 含 Bug、visible test 和 .git 的独立 baseline
   acceptance/*_test.py     # 独立验收，不在 Agent workspace
@@ -62,6 +69,10 @@ benchmarks/
 `validation_summary.json` 和同名 Markdown 记录每道题四次检查及源仓库状态；测试原始输出
 分别保存在各题目录中。外部验收使用独立 pytest 进程与 workspace 的 PYTHONPATH，验收文件
 不会复制到 Agent clone 内。
+
+`hard-v2` 的 6 题全部要求同时修改 2–3 个实现文件，并加入间接依赖、相似命名干扰或跨模块状态
+不变量。它们仍是十余文件规模的合成题，不等同真实大型仓库 issue。完整设计、运行顺序和指标解释
+见 [hard_suite_v2.md](hard_suite_v2.md)。
 
 ## 什么算通过
 

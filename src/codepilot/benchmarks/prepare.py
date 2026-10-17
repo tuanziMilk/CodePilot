@@ -23,7 +23,8 @@ def git(repo: Path, *args: str) -> str:
         "GIT_COMMITTER_EMAIL": "benchmark@codepilot.invalid",
     })
     result = subprocess.run(
-        ["git", "-c", "user.name=CodePilot Benchmark", "-c",
+        ["git", "-c", f"safe.directory={repo.resolve().as_posix()}", "-c",
+         "user.name=CodePilot Benchmark", "-c",
          "user.email=benchmark@codepilot.invalid", "-c", "core.autocrlf=false", "-c",
          "commit.gpgsign=false", *args],
         cwd=repo, env=environment, text=True, capture_output=True, check=True,
@@ -49,6 +50,7 @@ def prepare_suite(root: Path) -> dict:
     root.mkdir(parents=True, exist_ok=True)
     manifest = {"tasks": []}
     challenge_manifest = {"tasks": []}
+    hard_v2_manifest = {"tasks": []}
     commits = {}
     for task in task_definitions():
         files = baseline_files(task)
@@ -86,11 +88,21 @@ def prepare_suite(root: Path) -> dict:
         acceptance.write_text(task.acceptance_test, encoding="utf-8", newline="\n")
         reference = root / "reference" / f"{task.task_id}.json"
         reference.parent.mkdir(parents=True, exist_ok=True)
-        reference.write_text(json.dumps({
+        reference_payload = {
             "task_id": task.task_id, "path": task.fix_path,
             "old": task.old, "new": task.new,
             "baseline_definition_sha256": definition_digest(files),
-        }, indent=2) + "\n", encoding="utf-8", newline="\n")
+        }
+        if task.additional_fixes:
+            reference_payload["edits"] = [
+                {"path": edit.path, "old": edit.old, "new": edit.new}
+                for edit in task.reference_edits()
+            ]
+        reference.write_text(
+            json.dumps(reference_payload, indent=2) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
         spec = {
             "task_id": task.task_id,
             "repository": f"../repos/{task.task_id}",
@@ -111,6 +123,8 @@ def prepare_suite(root: Path) -> dict:
         manifest["tasks"].append(f"tasks/{task.task_id}.json")
         if task.difficulty == "challenge":
             challenge_manifest["tasks"].append(f"tasks/{task.task_id}.json")
+        if task.difficulty == "hard-v2":
+            hard_v2_manifest["tasks"].append(f"tasks/{task.task_id}.json")
         commits[task.task_id] = commit
     (root / "suite.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n",
@@ -118,9 +132,13 @@ def prepare_suite(root: Path) -> dict:
     (root / "challenge_suite.json").write_text(
         json.dumps(challenge_manifest, indent=2) + "\n", encoding="utf-8", newline="\n",
     )
+    (root / "hard_suite_v2.json").write_text(
+        json.dumps(hard_v2_manifest, indent=2) + "\n", encoding="utf-8", newline="\n",
+    )
     return {
         "suite": str(root / "suite.json"),
         "challenge_suite": str(root / "challenge_suite.json"),
+        "hard_suite_v2": str(root / "hard_suite_v2.json"),
         "task_count": len(commits),
         "commits": commits,
     }

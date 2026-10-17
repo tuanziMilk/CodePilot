@@ -6,6 +6,7 @@ import pytest
 
 from codepilot.benchmarks.definitions import task_definitions
 from codepilot.benchmarks.prepare import prepare_suite
+from codepilot.evaluation.runner import prepare_tasks
 
 
 def definition(task_id):
@@ -40,14 +41,31 @@ def test_prepare_is_idempotent_and_keeps_answers_outside_repos(tmp_path):
     first = prepare_suite(tmp_path / "benchmarks")
     second = prepare_suite(tmp_path / "benchmarks")
     assert first == second
-    assert first["task_count"] == 15
+    assert first["task_count"] == 21
     challenge = tmp_path / "benchmarks" / "challenge_suite.json"
     assert challenge.read_text(encoding="utf-8").count("tasks/") == 5
+    hard_v2 = tmp_path / "benchmarks" / "hard_suite_v2.json"
+    assert hard_v2.read_text(encoding="utf-8").count("tasks/") == 6
+    prepared_hard_tasks = prepare_tasks([], hard_v2)
+    assert all(len(item.reference_fix_files) >= 2 for item in prepared_hard_tasks)
     for task in task_definitions():
         repo = tmp_path / "benchmarks" / "repos" / task.task_id
         assert not (repo / "acceptance").exists()
         assert not (repo / "reference").exists()
         assert not any("acceptance" in path.name for path in repo.rglob("*.py"))
+
+
+def test_hard_v2_tasks_require_multiple_exact_reference_edits():
+    tasks = [task for task in task_definitions() if task.difficulty == "hard-v2"]
+    assert len(tasks) == 6
+    for task in tasks:
+        edits = task.reference_edits()
+        assert len(edits) >= 2
+        assert len(task.files) >= 10
+        assert len({edit.path for edit in edits}) == len(edits)
+        for edit in edits:
+            assert edit.path in task.files
+            assert task.files[edit.path].count(edit.old) == 1
 
 
 def test_prepare_refuses_to_overwrite_user_changes(tmp_path):
