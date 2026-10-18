@@ -32,6 +32,10 @@ class RunMetadata(BaseModel):
     requires_reproduction: bool = False
     retrieval_mode: str = "none"
     retrieval_top_k: int = 0
+    context_mode: str = "compact"
+    agent_context_trigger_chars: int = 16_000
+    agent_context_max_chars: int = 32_000
+    agent_context_recent_steps: int = 4
     command_timeout_seconds: float = 60
     git_commit: str | None = None
     start_time: datetime
@@ -62,6 +66,13 @@ class TrajectoryEvent(BaseModel):
     token_usage: dict[str, int | float | None] | None = None
     provider_retry_count: int | None = None
     latency_ms: int | None = None
+    context_mode: str | None = None
+    context_compacted: bool | None = None
+    context_messages_before: int | None = None
+    context_messages_after: int | None = None
+    context_chars_before: int | None = None
+    context_chars_after: int | None = None
+    context_steps_compacted: int | None = None
 
 
 class TrajectoryWriter:
@@ -98,6 +109,12 @@ class TrajectoryWriter:
         event_latency_ms = sum(event.latency_ms or 0 for event in self._events)
         elapsed_ms = max(0, round((datetime.now(UTC) - self._start_time).total_seconds() * 1000))
         tool_events = [event for event in self._events if event.event_type == "tool_result"]
+        context_request_events = [
+            event
+            for event in self._events
+            if event.event_type in {"assistant_response", "provider_error"}
+            and event.context_chars_after is not None
+        ]
         metrics = {
             "llm_latency_ms": latency("assistant_response"),
             "retrieval_latency_ms": latency("retrieval"),
@@ -119,6 +136,29 @@ class TrajectoryWriter:
             ),
             "provider_request_retry_count": sum(
                 event.provider_retry_count or 0 for event in self._events
+            ),
+            "context_compaction_count": sum(
+                event.event_type == "context_compaction" for event in self._events
+            ),
+            "max_context_chars_before": max(
+                (event.context_chars_before or 0 for event in context_request_events), default=0
+            ),
+            "max_context_chars_after": max(
+                (event.context_chars_after or 0 for event in context_request_events), default=0
+            ),
+            "max_context_messages_sent": max(
+                (event.context_messages_after or 0 for event in context_request_events), default=0
+            ),
+            "max_context_steps_compacted": max(
+                (event.context_steps_compacted or 0 for event in self._events), default=0
+            ),
+            "context_request_count": len(context_request_events),
+            "total_context_chars_sent": sum(
+                event.context_chars_after or 0 for event in context_request_events
+            ),
+            "context_chars_saved": sum(
+                max(0, (event.context_chars_before or 0) - (event.context_chars_after or 0))
+                for event in context_request_events
             ),
         }
         for tool_name in (

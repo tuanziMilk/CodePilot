@@ -1,0 +1,6 @@
+{
+  "tasks": [
+    "tasks/ledger-transfer-atomicity.json",
+    "tasks/plugin-resolution-shadowing.json"
+  ]
+}

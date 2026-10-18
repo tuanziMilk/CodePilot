@@ -35,8 +35,27 @@ def test_writer_aggregates_observable_latency_and_tool_statuses(tmp_path: Path) 
         TrajectoryEvent(
             run_id="metrics-run",
             step=1,
+            event_type="context_compaction",
+            context_messages_before=12,
+            context_messages_after=8,
+            context_chars_before=40_000,
+            context_chars_after=20_000,
+            context_steps_compacted=3,
+        )
+    )
+    writer.write_event(
+        TrajectoryEvent(
+            run_id="metrics-run",
+            step=1,
             event_type="assistant_response",
             latency_ms=5,
+            context_mode="compact",
+            context_compacted=True,
+            context_messages_before=12,
+            context_messages_after=8,
+            context_chars_before=40_000,
+            context_chars_after=20_000,
+            context_steps_compacted=3,
         )
     )
     writer.write_event(
@@ -91,4 +110,37 @@ def test_writer_aggregates_observable_latency_and_tool_statuses(tmp_path: Path) 
     assert metrics["read_file_count"] == 1
     assert metrics["update_plan_count"] == 2
     assert metrics["plan_noop_count"] == 1
+    assert metrics["context_compaction_count"] == 1
+    assert metrics["max_context_chars_before"] == 40_000
+    assert metrics["max_context_chars_after"] == 20_000
+    assert metrics["max_context_messages_sent"] == 8
+    assert metrics["max_context_steps_compacted"] == 3
+    assert metrics["context_request_count"] == 1
+    assert metrics["total_context_chars_sent"] == 20_000
+    assert metrics["context_chars_saved"] == 20_000
     assert metrics["run_elapsed_ms"] >= 0
+
+
+def test_writer_measures_uncompacted_provider_context(tmp_path: Path) -> None:
+    writer = TrajectoryWriter(tmp_path / "full-run", _metadata())
+    writer.write_event(
+        TrajectoryEvent(
+            run_id="metrics-run",
+            step=1,
+            event_type="assistant_response",
+            context_mode="full",
+            context_compacted=False,
+            context_messages_before=7,
+            context_messages_after=7,
+            context_chars_before=9_500,
+            context_chars_after=9_500,
+        )
+    )
+
+    metrics = writer.metrics()
+
+    assert metrics["context_request_count"] == 1
+    assert metrics["total_context_chars_sent"] == 9_500
+    assert metrics["max_context_chars_before"] == 9_500
+    assert metrics["max_context_chars_after"] == 9_500
+    assert metrics["context_chars_saved"] == 0

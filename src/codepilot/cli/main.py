@@ -83,6 +83,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=3,
         help="Maximum files supplied by lexical retrieval (1-10; default: 3).",
     )
+    parser.add_argument(
+        "--context-mode",
+        choices=("full", "compact"),
+        default="compact",
+        help="Send full history or compact older public action/observation steps.",
+    )
     return parser
 
 
@@ -194,6 +200,7 @@ def main() -> int:
         requires_reproduction=requires_reproduction,
         retrieval_mode=args.retrieval_mode,
         retrieval_top_k=args.retrieval_top_k if args.retrieval_mode != "none" else 0,
+        context_mode=args.context_mode,
         **settings.redacted_snapshot(),
     )
     trajectory = TrajectoryWriter(artifact_parent / run_id, metadata)
@@ -233,6 +240,10 @@ def main() -> int:
         max_steps=settings.agent_max_steps,
         max_retries=settings.agent_max_retries,
         planning_mode=planning_mode,
+        context_mode=args.context_mode,
+        context_trigger_chars=settings.agent_context_trigger_chars,
+        context_max_chars=settings.agent_context_max_chars,
+        context_recent_steps=settings.agent_context_recent_steps,
     )
     result = harness.run(
         task_text,
@@ -257,6 +268,8 @@ def main() -> int:
         "planning_mode": planning_mode,
         "retrieval_mode": args.retrieval_mode,
         "retrieval_paths": list(retrieval_result.paths) if retrieval_result else [],
+        "context_mode": args.context_mode,
+        "context_compaction_count": result.state.context_compaction_count,
         "token_usage": result.state.aggregate_usage.model_dump(),
         "metrics": trajectory.metrics(),
         "artifact_dir": str(trajectory.artifact_dir),

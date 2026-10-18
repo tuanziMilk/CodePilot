@@ -11,7 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
 
 class Settings(BaseModel):
@@ -32,8 +32,11 @@ class Settings(BaseModel):
     git_bash_path: Path = Path(r"C:\Program Files\Git\bin\bash.exe")
     agent_max_steps: int = Field(default=12, ge=1)
     agent_max_retries: int = Field(default=1, ge=0)
+    agent_context_trigger_chars: int = Field(default=16_000, ge=4_000)
+    agent_context_max_chars: int = Field(default=32_000, ge=4_000)
+    agent_context_recent_steps: int = Field(default=4, ge=1, le=12)
     tool_policy_version: str = "mvp-v1"
-    prompt_version: str = "mvp-v2"
+    prompt_version: str = "mvp-v3"
     command_timeout_seconds: float = Field(default=60, gt=0)
 
     @field_validator("llm_provider")
@@ -50,6 +53,12 @@ class Settings(BaseModel):
         if parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError("LLM_BASE_URL must not contain credentials, query parameters or fragments.")
         return value.rstrip("/")
+
+    @model_validator(mode="after")
+    def validate_context_thresholds(self) -> Settings:
+        if self.agent_context_trigger_chars > self.agent_context_max_chars:
+            raise ValueError("AGENT_CONTEXT_TRIGGER_CHARS must not exceed AGENT_CONTEXT_MAX_CHARS.")
+        return self
 
     @classmethod
     def from_env(cls, env_file: Path | None = None) -> Settings:
@@ -80,8 +89,13 @@ class Settings(BaseModel):
             ),
             agent_max_steps=int(os.getenv("AGENT_MAX_STEPS", "12")),
             agent_max_retries=int(os.getenv("AGENT_MAX_RETRIES", "1")),
+            agent_context_trigger_chars=int(
+                os.getenv("AGENT_CONTEXT_TRIGGER_CHARS", "16000")
+            ),
+            agent_context_max_chars=int(os.getenv("AGENT_CONTEXT_MAX_CHARS", "32000")),
+            agent_context_recent_steps=int(os.getenv("AGENT_CONTEXT_RECENT_STEPS", "4")),
             tool_policy_version=os.getenv("TOOL_POLICY_VERSION", "mvp-v1"),
-            prompt_version=os.getenv("PROMPT_VERSION", "mvp-v2"),
+            prompt_version=os.getenv("PROMPT_VERSION", "mvp-v3"),
             command_timeout_seconds=float(os.getenv("COMMAND_TIMEOUT_SECONDS", "60")),
         )
 
@@ -104,6 +118,9 @@ class Settings(BaseModel):
             "git_bash_path": str(self.git_bash_path),
             "agent_max_steps": self.agent_max_steps,
             "agent_max_retries": self.agent_max_retries,
+            "agent_context_trigger_chars": self.agent_context_trigger_chars,
+            "agent_context_max_chars": self.agent_context_max_chars,
+            "agent_context_recent_steps": self.agent_context_recent_steps,
             "tool_policy_version": self.tool_policy_version,
             "prompt_version": self.prompt_version,
             "command_timeout_seconds": self.command_timeout_seconds,

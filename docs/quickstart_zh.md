@@ -47,6 +47,8 @@ Copy-Item .env.example .env
 | --- | --- |
 | `AGENT_MAX_STEPS` | 每次 run 最大模型轮数 |
 | `AGENT_MAX_RETRIES` | 最终验证失败后可返回模型修复的次数 |
+| `AGENT_CONTEXT_MAX_CHARS` | Provider 工作上下文的近似字符预算 |
+| `AGENT_CONTEXT_RECENT_STEPS` | 压缩时原样保留的最近完整步骤数 |
 | `LLM_REQUEST_RETRIES` | 网络/HTTP 暂时失败的请求重试数 |
 | `LLM_TIMEOUT_SECONDS` | 单次 API 请求超时 |
 | `COMMAND_TIMEOUT_SECONDS` | 本地工具命令与 Harness verifier 超时 |
@@ -54,10 +56,10 @@ Copy-Item .env.example .env
 Provider retry 与 repair retry 不是同一个东西。新增版本会分别保留计数；一次 run 中普通工具失败
 后模型再次尝试，也不自动算 repair retry。
 
-当前 prompt 协议为 `mvp-v2`。如果 `.env` 来自旧版本，请确认：
+当前 prompt 协议为 `mvp-v3`。如果 `.env` 来自旧版本，请确认：
 
 ```text
-PROMPT_VERSION=mvp-v2
+PROMPT_VERSION=mvp-v3
 ```
 
 该字段只用于实验身份记录，不包含任何密钥。

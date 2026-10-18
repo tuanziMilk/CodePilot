@@ -30,14 +30,19 @@ TaskSpec，也不会向模型提示目标文件。多文件任务应优先看 re
 
 ## 四个固定配置
 
-| Configuration | 公开 plan + 先复现失败 | Lexical retrieval |
-|---|---|---|
-| basic | 关闭（update_plan 工具不可见） | 关闭 |
-| reliable | 开启 | 关闭 |
-| retrieval | 关闭（update_plan 工具不可见） | 开启 |
-| full | 开启 | 开启 |
+| Configuration | 公开 plan + 先复现失败 | Lexical retrieval | Working context |
+|---|---|---|---|
+| basic | 关闭（update_plan 工具不可见） | 关闭 | compact |
+| reliable | 开启 | 关闭 | compact |
+| retrieval | 关闭（update_plan 工具不可见） | 开启 | compact |
+| full | 开启 | 开启 | compact |
 
-这是两个因素的 2×2 实验：可靠性控制组合与 retrieval。可靠性控制同时改变 planning 和 reproduction gate，不能把 basic→reliable 的差异归因于 planning 单项。每组保持同一模型、预算和工具策略；先选定配置，再完整跑完，避免中途因结果不好而调整参数。
+这是两个因素的 2×2 实验：可靠性控制组合与 retrieval。可靠性控制同时改变 planning 和 reproduction gate，不能把 basic→reliable 的差异归因于 planning 单项。每组保持同一模型、预算和工具策略，避免中途因结果不好而调整参数。
+
+`basic-uncompacted` 与 `full-uncompacted` 是 opt-in context ablation arms，不加入默认四配置，避免自动
+增加 API 成本。它们分别与 `basic` / `full` 保持其他开关一致，只把 working context 改为完整历史。
+多配置重复实验按确定性的轮转顺序执行，例如 AB、BA、AB；下一个 task 改变起始配置，以降低某一
+配置始终先运行的顺序偏差。
 
 ## 一次 case 的验收过程
 
@@ -64,7 +69,12 @@ python run.py report artifacts/evaluations/<evaluation_id>
 
 也可用 `python -m codepilot.evaluation.report <evaluation_dir>`。它只读取已保存数据并输出 report.json / report.csv / report.md，不会再次运行 Agent。每个 case 还保存 baseline_visible_test.json、baseline_acceptance.json、acceptance_result.json、changes.diff、result.json、CLI 输出、trajectory 与 run metadata。
 
-Success rate 严格计算完整成功；test pass rate 只看外部 acceptance。两者分开帮助识别“改对但没有正确终止”。Steps、repair retries、tokens、LLM latency、run latency、tool denied/error 使用真实 telemetry；缺失值保持 null，并记录有效样本数，不当作 0。失败/无效基线/infra 的 case 都保留在汇总分母中，同时记录类别，读结果时应先检查这些原因。
+Success rate 严格计算完整成功；test pass rate 只看外部 acceptance。两者分开帮助识别“改对但没有
+正确终止”。Steps、repair retries、tokens、LLM latency、run latency、tool denied/error 使用真实
+telemetry；context 实验还记录每轮消息字符、累计发送字符、压缩次数、直接节省字符和单轮峰值。
+字符数是 provider-neutral 近似值，不等同 tokenizer 的精确输入 Token。缺失值保持 null，并记录
+有效样本数，不当作 0。失败/无效基线/infra 的 case 都保留在汇总分母中，同时记录类别，读结果时
+应先检查这些原因。
 
 ## 可报告结论的边界
 

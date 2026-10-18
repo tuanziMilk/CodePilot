@@ -14,6 +14,10 @@ def test_viewer_renders_new_and_legacy_events(tmp_path: Path) -> None:
             "action": "inspect_repository",
             "reason": "Discover the repository layout before selecting relevant files.",
             "targets": ["."],
+            "context_mode": "full",
+            "context_compacted": False,
+            "context_messages_after": 2,
+            "context_chars_after": 700,
         },
         {
             "step": 1,
@@ -22,6 +26,15 @@ def test_viewer_renders_new_and_legacy_events(tmp_path: Path) -> None:
             "tool_arguments": {},
             "tool_result_summary": "calculator.py\ntest_calculator.py",
             "state_change": "tool_ok",
+        },
+        {
+            "step": 2,
+            "event_type": "context_compaction",
+            "context_steps_compacted": 2,
+            "context_messages_before": 9,
+            "context_messages_after": 6,
+            "context_chars_before": 12000,
+            "context_chars_after": 6000,
         },
         {
             "step": 2,
@@ -39,9 +52,11 @@ def test_viewer_renders_new_and_legacy_events(tmp_path: Path) -> None:
 
     assert "Step 1" in rendered
     assert "Action: Inspect repository files." in rendered
+    assert "Context: full, unchanged; messages sent=2; chars sent=700" in rendered
     assert "Tool: list_files" in rendered
     assert "Status: OK" in rendered
     assert "Verification" in rendered
+    assert "Context: compacted 2 older step(s); messages 9→6; chars 12000→6000" in rendered
     assert "Status: verified_success" in rendered
 
 

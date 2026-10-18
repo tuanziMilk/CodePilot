@@ -34,7 +34,25 @@ def render_trajectory(path: Path) -> str:
             None,
         )
         if verification:
-            sections.append(_render_verification(verification))
+            context = next(
+                (
+                    event
+                    for event in step_events
+                    if event.get("event_type") == "context_compaction"
+                ),
+                None,
+            )
+            if context is None:
+                context = next(
+                    (
+                        event
+                        for event in step_events
+                        if event.get("event_type") == "assistant_response"
+                        and event.get("context_chars_after") is not None
+                    ),
+                    None,
+                )
+            sections.append(_render_verification(verification, context))
             continue
         sections.append(_render_step(step, step_events))
     return "\n\n".join(section for section in sections if section)
@@ -72,6 +90,14 @@ def _render_step(step: int, events: list[dict[str, Any]]) -> str:
     tool_events = [event for event in events if event.get("event_type") == "tool_result"]
     action = assistant.get("action_summary") or _legacy_action(tool_events)
     lines = [f"Step {step}", f"Action: {action}"]
+    context = next(
+        (event for event in events if event.get("event_type") == "context_compaction"),
+        None,
+    )
+    if context:
+        lines.append(_context_line(context))
+    elif assistant.get("context_chars_after") is not None:
+        lines.append(_request_context_line(assistant))
     usage = assistant.get("token_usage") or {}
     if usage:
         lines.append(f"Tokens: input={usage.get('input_tokens')} output={usage.get('output_tokens')} total={usage.get('total_tokens')}")
@@ -114,8 +140,16 @@ def _render_retrieval(step: int, event: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _render_verification(event: dict[str, Any]) -> str:
+def _render_verification(
+    event: dict[str, Any], context: dict[str, Any] | None = None
+) -> str:
     lines = ["Verification"]
+    if context:
+        lines.append(
+            _context_line(context)
+            if context.get("event_type") == "context_compaction"
+            else _request_context_line(context)
+        )
     if event.get("tool_result_summary"):
         lines.append(f"Result: {_compact(event['tool_result_summary'])}")
     lines.append(f"Status: {event.get('state_change', 'unknown')}")
@@ -123,6 +157,26 @@ def _render_verification(event: dict[str, Any]) -> str:
     if event.get("latency_ms") is not None:
         lines.append(f"Latency: {event['latency_ms']} ms")
     return "\n".join(lines)
+
+
+def _context_line(event: dict[str, Any]) -> str:
+    return (
+        "Context: compacted "
+        f"{event.get('context_steps_compacted', 0)} older step(s); "
+        f"messages {event.get('context_messages_before')}→"
+        f"{event.get('context_messages_after')}; "
+        f"chars {event.get('context_chars_before')}→{event.get('context_chars_after')}"
+    )
+
+
+def _request_context_line(event: dict[str, Any]) -> str:
+    mode = event.get("context_mode", "unknown")
+    compacted = "compacted" if event.get("context_compacted") else "unchanged"
+    return (
+        f"Context: {mode}, {compacted}; "
+        f"messages sent={event.get('context_messages_after')}; "
+        f"chars sent={event.get('context_chars_after')}"
+    )
 
 
 def _legacy_action(tool_events: list[dict[str, Any]]) -> str:

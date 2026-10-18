@@ -65,11 +65,16 @@ class ChatResponse(BaseModel):
 
 
 def tool_observation(result: ToolResult) -> Message:
-    """Convert a normalized tool result into next-turn message history."""
+    """Convert a normalized tool result into an explicit public observation."""
+
+    header = [f"Tool: {result.tool_name}", f"Status: {result.status.value}"]
+    if result.return_code is not None:
+        header.append(f"Return code: {result.return_code}")
+    header.append("Observation:")
 
     return Message(
         role=MessageRole.TOOL,
-        content=result.output_summary,
+        content="\n".join(header + [result.output_summary]),
         tool_call_id=result.call_id,
     )
 

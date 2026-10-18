@@ -25,12 +25,13 @@ from codepilot.permissions.policy import PermissionPolicy
 
 @dataclass(frozen=True)
 class EvaluationConfig:
-    """A 2 x 2 arm: reliability controls (plan + reproduction) and retrieval."""
+    """One controlled Harness configuration used by an evaluation case."""
 
     name: str
     require_plan: bool
     reproduction_policy: str
     retrieval_mode: str
+    context_mode: str = "compact"
 
     def cli_arguments(self) -> list[str]:
         return [
@@ -40,6 +41,8 @@ class EvaluationConfig:
             self.reproduction_policy,
             "--retrieval-mode",
             self.retrieval_mode,
+            "--context-mode",
+            self.context_mode,
         ]
 
 
@@ -49,6 +52,14 @@ DEFAULT_CONFIGS = {
     "retrieval": EvaluationConfig("retrieval", False, "off", "lexical"),
     "full": EvaluationConfig("full", True, "on", "lexical"),
 }
+
+# Opt-in arms for isolating context compaction without increasing the default
+# four-arm evaluation cost.
+OPTIONAL_CONFIGS = {
+    "basic-uncompacted": EvaluationConfig("basic-uncompacted", False, "off", "none", "full"),
+    "full-uncompacted": EvaluationConfig("full-uncompacted", True, "on", "lexical", "full"),
+}
+ALL_CONFIGS = {**DEFAULT_CONFIGS, **OPTIONAL_CONFIGS}
 
 
 @dataclass(frozen=True)
@@ -66,7 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--suite", type=Path, help="JSON manifest; task paths are relative to this file."
     )
-    parser.add_argument("--config", choices=tuple(DEFAULT_CONFIGS), action="append")
+    parser.add_argument("--config", choices=tuple(ALL_CONFIGS), action="append")
     parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument(
@@ -521,6 +532,10 @@ def run_case(
                     "requires_reproduction",
                     "retrieval_mode",
                     "retrieval_top_k",
+                    "context_mode",
+                    "agent_context_trigger_chars",
+                    "agent_context_max_chars",
+                    "agent_context_recent_steps",
                     "command_timeout_seconds",
                     "git_commit",
                     "start_time",
@@ -590,6 +605,8 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         for output, path in {
             "steps": ("steps",),
             "retry_count": ("retry_count",),
+            "input_tokens": ("token_usage", "input_tokens"),
+            "output_tokens": ("token_usage", "output_tokens"),
             "total_tokens": ("token_usage", "total_tokens"),
             "run_elapsed_ms": ("metrics", "run_elapsed_ms"),
             "llm_latency_ms": ("metrics", "llm_latency_ms"),
@@ -602,6 +619,14 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
             "bash_count": ("metrics", "bash_count"),
             "update_plan_count": ("metrics", "update_plan_count"),
             "plan_noop_count": ("metrics", "plan_noop_count"),
+            "context_compaction_count": ("metrics", "context_compaction_count"),
+            "context_request_count": ("metrics", "context_request_count"),
+            "total_context_chars_sent": ("metrics", "total_context_chars_sent"),
+            "context_chars_saved": ("metrics", "context_chars_saved"),
+            "max_context_chars_before": ("metrics", "max_context_chars_before"),
+            "max_context_chars_after": ("metrics", "max_context_chars_after"),
+            "max_context_messages_sent": ("metrics", "max_context_messages_sent"),
+            "max_context_steps_compacted": ("metrics", "max_context_steps_compacted"),
         }.items():
             samples = []
             for record in group:
@@ -616,6 +641,7 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
                 "tool_error_count": "tool_errors",
                 "tool_denied_count": "tool_denied",
                 "plan_noop_count": "plan_noops",
+                "context_compaction_count": "context_compactions",
             }
             if output in totals:
                 values[totals[output]] = sum(samples) if samples else None
@@ -685,6 +711,20 @@ def aggregate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     return {"run_count": len(records), "by_config": by_config, "records": records}
 
 
+def evaluation_schedule(
+    prepared: list[PreparedTask], configs: list[str], repeat: int
+) -> list[tuple[PreparedTask, str, int]]:
+    """Return a deterministic rotated order to reduce first-arm ordering bias."""
+
+    schedule: list[tuple[PreparedTask, str, int]] = []
+    for task_index, item in enumerate(prepared):
+        for repeat_index in range(1, repeat + 1):
+            offset = (task_index + repeat_index - 1) % len(configs)
+            ordered = configs[offset:] + configs[:offset]
+            schedule.extend((item, name, repeat_index) for name in ordered)
+    return schedule
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -700,6 +740,7 @@ def main(argv: list[str] | None = None) -> int:
             "configs": configs,
             "repeat": args.repeat,
             "cases": len(prepared) * len(configs) * args.repeat,
+            "ordering": "deterministic_rotating_counterbalance",
         }
         if args.list or args.dry_run:
             print(json.dumps(plan, indent=2, ensure_ascii=False))
@@ -715,32 +756,30 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(f"Output directory already exists: {output}")
         output.mkdir(parents=True)
         records: list[dict[str, Any]] = []
-        for item in prepared:
-            for name in configs:
-                for index in range(1, args.repeat + 1):
-                    print(f"Running {item.task.task_id} / {name} / {index}", flush=True)
-                    record = run_case(
-                        project_root=project_root,
-                        task_path=item.path,
-                        task=item.task,
-                        source_repo=item.source_repo,
-                        acceptance_path=item.acceptance_path,
-                        reference_fix_files=item.reference_fix_files,
-                        config=DEFAULT_CONFIGS[name],
-                        case_dir=output / item.task.task_id / name / f"run-{index:02d}",
-                        case_timeout=args.case_timeout,
-                        test_timeout=args.test_timeout,
-                    )
-                    records.append(record)
-                    summary = {
-                        "created_at": datetime.now(UTC).isoformat(),
-                        **plan,
-                        **aggregate_records(records),
-                    }
-                    _write_json(output / "evaluation_summary.json", summary)
-                    from codepilot.evaluation.report import write_reports
+        for item, name, index in evaluation_schedule(prepared, configs, args.repeat):
+            print(f"Running {item.task.task_id} / {name} / {index}", flush=True)
+            record = run_case(
+                project_root=project_root,
+                task_path=item.path,
+                task=item.task,
+                source_repo=item.source_repo,
+                acceptance_path=item.acceptance_path,
+                reference_fix_files=item.reference_fix_files,
+                config=ALL_CONFIGS[name],
+                case_dir=output / item.task.task_id / name / f"run-{index:02d}",
+                case_timeout=args.case_timeout,
+                test_timeout=args.test_timeout,
+            )
+            records.append(record)
+            summary = {
+                "created_at": datetime.now(UTC).isoformat(),
+                **plan,
+                **aggregate_records(records),
+            }
+            _write_json(output / "evaluation_summary.json", summary)
+            from codepilot.evaluation.report import write_reports
 
-                    write_reports(summary, output)
+            write_reports(summary, output)
         print(f"evaluation_dir={output}")
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:

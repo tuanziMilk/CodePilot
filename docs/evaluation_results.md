@@ -1,6 +1,6 @@
 # Evaluation results
 
-本文冻结 CodePilot 求职 MVP 的两轮主要真实模型实验。原始 `artifacts/` 含完整 workspace、轨迹和
+本文冻结 CodePilot 求职 MVP 的主要真实模型实验。原始 `artifacts/` 含完整 workspace、轨迹和
 CLI 输出，因体积、运行时文件和潜在本机路径不进入 Git；这里保留协议、聚合数字和可复核解释。
 
 > 这两轮数据早于 `hard_suite_v2`，不能与新套件直接混算。6 个多文件任务的 mvp-v2 候选结果见
@@ -104,3 +104,44 @@ Retrieval 的平均 Steps 最少（9.17）；Full 的平均 Token（36,701.8）�
 Retrieval reference Hit@1 为 16.7%，平均 reference-file recall@K 为 61.1%，说明 Top-3 通常命中
 相关区域但不能覆盖全部多文件修复点。完整表格、工具拒绝分类、过度修改案例与复现限制见
 [hard_suite_v2_results.md](hard_suite_v2_results.md)。
+
+## Experiment D：Working Context Compaction V2
+
+该实验隔离 working-context 策略：`full-uncompacted` 与 `full` 均启用相同的 required planning、
+失败复现和 lexical retrieval，唯一设计差异是发送完整历史还是阈值式公开摘要。Runner 按 AB/BA
+轮转顺序执行，减少某配置始终先运行的顺序偏差。
+
+### D1：默认16k阈值校准
+
+运行规模：2 tasks × 2 configurations × 3 repeats = 12 cases。两组均为 6/6 strict success，但
+compact 组压缩次数为0。最大单轮上下文为14,325字符，未达到16k trigger。
+
+这不是有效的压缩效果 A/B，而是一次 manipulation check：它证明新策略不会像旧实现一样只因超过
+4个 step 就在约9.7k字符时过早压缩。
+
+### D2：8k强制触发消融
+
+8k通过进程环境变量临时设置，项目默认值仍为16k。运行规模同样为12 cases。
+
+| Context configuration | Success | Avg steps | Avg input tokens | Avg total tokens | Avg latency | Avg reads | Compactions |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Full history | 6/6 | 9.50 | 33,042 | 35,637 | 43.6s | 10.17 | 0 |
+| Compact | 6/6 | 8.50 | **25,746** | **27,790** | **37.6s** | **8.83** | 14 |
+
+可直接支持的机制结论：
+
+- 6个 compact run 全部触发，共14次；strict success、acceptance 和 diff audit 均保持100%；
+- compact 轨迹自身的累计消息字符直接减少约4.9%；
+- 平均单轮最大上下文从 canonical 11,112字符降到实际发送的9,811字符，约减少11.7%；
+- 没有 tool error、denied call 或 Agent repair。
+
+端到端观察值是输入 Token 少22.1%、总 Token 少22.0%、latency 少13.9%。这些差异同时包含 compact
+组平均少1个 step、较少搜索以及模型随机性，不能全部归因于摘要算法。六组配对的输入 Token 都更低，
+但两组在首次压缩前已经可能选择不同工具轨迹；`temperature=0` 也不保证服务端确定性。
+
+人工 trajectory audit 发现 compact 组有5次重复读取，完整历史组有2次，通常是编辑后再次读取目标
+文件。compact 总读取仍更少，因此它既可能表示信息损失，也可能只是主动复查；当前数据不能区分。
+
+本实验使用候选 worktree 而非已发布 clean commit，结果作为小样本工程消融保留，不包装为统计显著
+或生产级结论。协议和运行命令见
+[context_ablation_v2_experiment.md](context_ablation_v2_experiment.md)。

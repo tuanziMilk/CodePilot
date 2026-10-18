@@ -4,8 +4,8 @@
 
 CodePilot 是我从零实现的 repository-level Coding Agent。模型只负责产生结构化 ToolCall，Harness
 负责参数校验、权限控制、工具执行、状态更新和最终验证。我还实现了公开 Planning、失败复现门禁、
-bounded repair、lexical retrieval 和独立 Evaluation Runner，用固定 Git baseline、额外验收与
-diff audit 比较四种 Agent 配置，而不是只展示一次成功 Demo。
+bounded repair、lexical retrieval、阈值式 working-context compaction 和独立 Evaluation Runner，
+用固定 Git baseline、额外验收与 diff audit 比较 Agent 配置，而不是只展示一次成功 Demo。
 
 ## 简历版本
 
@@ -22,6 +22,8 @@ diff audit 比较四种 Agent 配置，而不是只展示一次成功 Demo。
 - 在 hard-v2 实验中，Full 相较 Basic 平均 Tokens 减少 10.7%、latency 减少 17.3%、文件读取减少
   19.6%；通过 trajectory 识别并修复 step-limit 误判，并分析 permission denial、Provider retry
   与轻微过度修改等 failure modes。
+- 分离完整审计历史与 Provider working context；在12-case强制触发消融中保持100% strict success，
+  观察到输入 Token 少22.1%、latency少13.9%，同时用直接字符指标和重复读取分析限定因果解释。
 
 最后一条必须和限定条件一起理解：只有 6 个独立任务且每配置只运行一次，不能写成统计显著或一般化
 性能提升。正式投递前应从 clean commit 重跑一次并替换候选数字。如果希望
@@ -90,6 +92,8 @@ python run.py report "<evaluation_dir>"
 - Provider retry 与 Agent repair 的触发点和计数有何区别？
 - 公开 Plan 为什么不是 Chain-of-Thought？重复 Plan 如何被记录？
 - Hit@3=100% 为什么不能证明 Retrieval 提升了成功率？
+- 为什么完整 `RunState.messages` 与 Provider working context 要分离？8k实验的22.1%为什么不能全部
+  归因于 compaction？
 - 为什么 `verified_success`、acceptance 和 diff audit 都必须通过？
 - 为什么逻辑 workspace boundary 不能称为 OS sandbox？
 

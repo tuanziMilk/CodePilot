@@ -5,6 +5,7 @@ from codepilot.evaluation.runner import (
     DEFAULT_CONFIGS,
     _clone_baseline,
     aggregate_records,
+    evaluation_schedule,
     materialize_task_file,
     retrieval_file_recall,
     retrieval_hit_rank,
@@ -20,6 +21,8 @@ def test_evaluation_configs_expose_only_the_intended_harness_switches() -> None:
         "off",
         "--retrieval-mode",
         "none",
+        "--context-mode",
+        "compact",
     ]
     assert DEFAULT_CONFIGS["full"].cli_arguments() == [
         "--planning-mode",
@@ -28,6 +31,8 @@ def test_evaluation_configs_expose_only_the_intended_harness_switches() -> None:
         "on",
         "--retrieval-mode",
         "lexical",
+        "--context-mode",
+        "compact",
     ]
 
 
@@ -56,8 +61,20 @@ def test_aggregate_records_groups_success_and_observable_metrics() -> None:
                 "evaluation_outcome": "success",
                 "acceptance_passed": True,
                 "steps": 4,
-                "token_usage": {"total_tokens": 100},
-                "metrics": {"run_elapsed_ms": 1000, "llm_latency_ms": 300, "tool_error_count": 1},
+                "token_usage": {"input_tokens": 80, "output_tokens": 20, "total_tokens": 100},
+                "metrics": {
+                    "run_elapsed_ms": 1000,
+                    "llm_latency_ms": 300,
+                    "tool_error_count": 1,
+                    "context_compaction_count": 2,
+                    "context_request_count": 4,
+                    "total_context_chars_sent": 40_000,
+                    "context_chars_saved": 10_000,
+                    "max_context_chars_before": 20_000,
+                    "max_context_chars_after": 10_000,
+                    "max_context_messages_sent": 8,
+                    "max_context_steps_compacted": 3,
+                },
                 "configuration": {"retrieval_mode": "lexical"},
                 "changed_files": ["calculator.py"],
                 "retrieval_hit_rank": 2,
@@ -71,8 +88,20 @@ def test_aggregate_records_groups_success_and_observable_metrics() -> None:
                 "evaluation_outcome": "failed",
                 "acceptance_passed": False,
                 "steps": 6,
-                "token_usage": {"total_tokens": 200},
-                "metrics": {"run_elapsed_ms": 3000, "llm_latency_ms": 500, "tool_denied_count": 2},
+                "token_usage": {"input_tokens": 150, "output_tokens": 50, "total_tokens": 200},
+                "metrics": {
+                    "run_elapsed_ms": 3000,
+                    "llm_latency_ms": 500,
+                    "tool_denied_count": 2,
+                    "context_compaction_count": 4,
+                    "context_request_count": 6,
+                    "total_context_chars_sent": 72_000,
+                    "context_chars_saved": 18_000,
+                    "max_context_chars_before": 30_000,
+                    "max_context_chars_after": 12_000,
+                    "max_context_messages_sent": 10,
+                    "max_context_steps_compacted": 5,
+                },
                 "configuration": {"retrieval_mode": "lexical"},
                 "changed_files": ["calculator.py"],
                 "retrieval_hit_rank": None,
@@ -88,15 +117,43 @@ def test_aggregate_records_groups_success_and_observable_metrics() -> None:
     assert basic["success_rate"] == 0.5
     assert basic["avg_steps"] == 5
     assert basic["avg_total_tokens"] == 150
+    assert basic["avg_input_tokens"] == 115
+    assert basic["avg_output_tokens"] == 35
     assert basic["avg_run_elapsed_ms"] == 2000
     assert basic["avg_llm_latency_ms"] == 400
     assert basic["tool_errors"] == 1
     assert basic["tool_denied"] == 2
     assert basic["step_limit_successes"] == 1
+    assert basic["context_compactions"] == 6
+    assert basic["avg_context_request_count"] == 5
+    assert basic["avg_total_context_chars_sent"] == 56_000
+    assert basic["avg_context_chars_saved"] == 14_000
+    assert basic["avg_max_context_chars_before"] == 25_000
+    assert basic["avg_max_context_chars_after"] == 11_000
+    assert basic["avg_max_context_messages_sent"] == 9
+    assert basic["avg_max_context_steps_compacted"] == 4
     assert basic["retrieval_hit_at_1_rate"] == 0
     assert basic["retrieval_hit_at_3_rate"] == 0.5
     assert basic["retrieval_reference_hit_at_1_rate"] == 0
     assert basic["avg_retrieval_reference_file_recall"] == 0.25
+
+
+def test_evaluation_schedule_rotates_config_order_deterministically() -> None:
+    first = object()
+    second = object()
+
+    schedule = evaluation_schedule([first, second], ["full-uncompacted", "full"], 2)
+
+    assert schedule == [
+        (first, "full-uncompacted", 1),
+        (first, "full", 1),
+        (first, "full", 2),
+        (first, "full-uncompacted", 2),
+        (second, "full", 1),
+        (second, "full-uncompacted", 1),
+        (second, "full-uncompacted", 2),
+        (second, "full", 2),
+    ]
 
 
 def test_retrieval_hit_rank_uses_first_changed_file_match() -> None:
